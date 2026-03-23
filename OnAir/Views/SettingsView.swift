@@ -169,13 +169,16 @@ struct SettingsView: View {
 
     private func selectSoundFile() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [
-            UTType.mp3, UTType.wav, UTType.aiff,
-            UTType(filenameExtension: "m4a") ?? .audio
-        ]
+        panel.allowedContentTypes = [.audio]
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
+        panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+        panel.treatsFilePackagesAsDirectories = false
+        panel.resolvesAliases = true
+
+        // Close popover so it doesn't interfere with the panel
+        NSApp.keyWindow?.close()
 
         if panel.runModal() == .OK, let url = panel.url {
             copyToAppSupport(url)
