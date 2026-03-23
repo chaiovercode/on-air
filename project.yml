@@ -22,6 +22,8 @@ targets:
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
     entitlements:
       path: OnAir/OnAir.entitlements
+      properties:
+        com.apple.security.personal-information.calendars: true
   OnAirTests:
     type: bundle.unit-test
     platform: macOS
