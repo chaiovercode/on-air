@@ -1,56 +1,79 @@
 import SwiftUI
 
-enum PopoverTab: String, CaseIterable {
-    case meetings = "Meetings"
-    case stats = "Stats"
-    case settings = "Settings"
-}
-
 struct PopoverView: View {
 
     @ObservedObject var appState: AppState
-    @State private var selectedTab: PopoverTab = .meetings
+    @State private var displayedMonth = Date()
+    @State private var selectedDate: Date? = nil
+    @State private var calendarCollapsed = false
+    @State private var showSearch = false
+    @State private var showNewEvent = false
+    @State private var showSettings = false
 
     private let accentRed = Color(red: 0.9, green: 0.25, blue: 0.2)
 
     var body: some View {
         VStack(spacing: 0) {
-            // Top toolbar
-            toolbar
+            // Header toolbar
+            headerToolbar
                 .padding(.horizontal, 14)
                 .padding(.top, 14)
-                .padding(.bottom, 8)
+                .padding(.bottom, 6)
 
-            // Content
-            Group {
-                switch selectedTab {
-                case .meetings:
-                    meetingsContent
-                case .stats:
-                    StatsView(statsService: appState.statsService)
-                case .settings:
-                    SettingsView(appState: appState, settings: appState.settings)
+            if appState.calendarAccessDenied {
+                calendarAccessView
+            } else {
+                ScrollView(.vertical, showsIndicators: true) {
+                    VStack(spacing: 0) {
+                        // Greeting card
+                        greetingCard
+                            .padding(.horizontal, 14)
+                            .padding(.bottom, 8)
+
+                        // Year progress bar
+                        YearProgressView()
+                            .padding(.horizontal, 14)
+                            .padding(.bottom, 10)
+
+                        // Calendar grid (collapsible)
+                        if !calendarCollapsed {
+                            CalendarGridView(
+                                appState: appState,
+                                displayedMonth: $displayedMonth,
+                                selectedDate: $selectedDate
+                            )
+                            .padding(.horizontal, 14)
+                            .padding(.bottom, 8)
+                        }
+
+                        // Agenda
+                        AgendaView(appState: appState, selectedDate: selectedDate)
+                            .padding(.horizontal, 14)
+                            .padding(.bottom, 12)
+                    }
                 }
+
+                // Footer
+                footer
             }
-            .frame(maxHeight: .infinity)
         }
-        .frame(width: 360, height: 520)
+        .frame(width: 380, height: 600)
     }
 
-    // MARK: - Toolbar (Dot-style)
+    // MARK: - Header Toolbar (Dot-style)
 
-    private var toolbar: some View {
+    private var headerToolbar: some View {
         HStack(spacing: 0) {
-            // Date display
+            // Date + icon
             HStack(spacing: 6) {
                 Image(systemName: "circle.fill")
-                    .font(.system(size: 8))
+                    .font(.system(size: 7))
                     .foregroundStyle(accentRed)
                 Text(Date().formatted(.dateTime.weekday(.abbreviated).day(.defaultDigits).month(.abbreviated)))
                     .font(.system(size: 13, weight: .medium))
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(.white.opacity(0.06))
@@ -58,11 +81,22 @@ struct PopoverView: View {
 
             Spacer()
 
-            // Tab buttons
+            // Action buttons
             HStack(spacing: 2) {
-                toolbarButton(icon: "calendar", tab: .meetings)
-                toolbarButton(icon: "chart.bar", tab: .stats)
-                toolbarButton(icon: "gearshape", tab: .settings)
+                headerButton(icon: "plus", help: "New Event ⌘N") {
+                    showNewEvent.toggle()
+                }
+                headerButton(icon: "magnifyingglass", help: "Search ⌘F") {
+                    showSearch.toggle()
+                }
+                headerButton(icon: calendarCollapsed ? "chevron.down" : "chevron.up", help: "Toggle Calendar") {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        calendarCollapsed.toggle()
+                    }
+                }
+                headerButton(icon: "gearshape", help: "Settings ⌘,") {
+                    openSettings()
+                }
             }
             .padding(3)
             .background(
@@ -72,79 +106,37 @@ struct PopoverView: View {
         }
     }
 
-    private func toolbarButton(icon: String, tab: PopoverTab) -> some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                selectedTab = tab
-            }
-        } label: {
+    private func headerButton(icon: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(selectedTab == tab ? .primary : .secondary)
-                .frame(width: 28, height: 24)
-                .background(
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(selectedTab == tab ? .white.opacity(0.1) : .clear)
-                )
+                .foregroundStyle(.secondary)
+                .frame(width: 26, height: 24)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .help(help)
     }
 
-    // MARK: - Meetings Content
+    // MARK: - Greeting Card (Dot-style)
 
-    private var meetingsContent: some View {
-        VStack(spacing: 0) {
-            if appState.calendarAccessDenied {
-                calendarAccessView
-            } else {
-                // Summary card (Dot-style greeting)
-                summaryCard
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 10)
+    private var greetingCard: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(greeting)
+                .font(.system(size: 13, weight: .semibold))
 
-                // Events list
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        if !todayEvents.isEmpty {
-                            sectionHeader("TODAY")
-                            ForEach(todayEvents) { event in
-                                MeetingRowView(
-                                    event: event,
-                                    isNext: event.id == appState.nextEvent?.id && !isInProgress(event),
-                                    isInProgress: isInProgress(event),
-                                    isPast: event.endDate <= Date(),
-                                    accentRed: accentRed
-                                )
-                            }
-                        } else {
-                            noMeetingsView
-                        }
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 12)
-                }
-
-                // Footer
-                footer
-            }
-        }
-    }
-
-    // MARK: - Summary Card
-
-    private var summaryCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 0) {
-                Text(greeting)
-                    .font(.system(size: 13, weight: .medium))
-                Text(" You have ")
-                    .font(.system(size: 13))
+                Text("You have ")
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
-                Text("\(todayEvents.count)")
-                    .font(.system(size: 13, weight: .bold))
+                Image(systemName: "calendar")
+                    .font(.system(size: 10))
                     .foregroundStyle(accentRed)
-                Text(" event\(todayEvents.count == 1 ? "" : "s") today.")
-                    .font(.system(size: 13))
+                Text(" \(appState.todayEvents.count)")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(accentRed)
+                Text(" event\(appState.todayEvents.count == 1 ? "" : "s") today.")
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
         }
@@ -163,22 +155,7 @@ struct PopoverView: View {
         return "Good evening."
     }
 
-    // MARK: - Section Header
-
-    private func sectionHeader(_ title: String) -> some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(accentRed)
-                .tracking(1.5)
-
-            Spacer()
-        }
-        .padding(.top, 8)
-        .padding(.bottom, 6)
-    }
-
-    // MARK: - States
+    // MARK: - Calendar Access
 
     private var calendarAccessView: some View {
         VStack(spacing: 16) {
@@ -205,19 +182,6 @@ struct PopoverView: View {
         .padding(32)
     }
 
-    private var noMeetingsView: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "checkmark.circle")
-                .font(.system(size: 22))
-                .foregroundStyle(.green.opacity(0.7))
-            Text("All clear — no meetings today")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 30)
-    }
-
     // MARK: - Footer
 
     private var footer: some View {
@@ -238,19 +202,19 @@ struct PopoverView: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)
     }
 
-    // MARK: - Helpers
+    // MARK: - Actions
 
-    private var todayEvents: [CalendarEvent] {
-        if appState.settings.showPastMeetings {
-            return appState.todayEvents
+    private func openSettings() {
+        // Open settings window
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        // Fallback: try standard preferences
+        if #available(macOS 14.0, *) {
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        } else {
+            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
         }
-        return appState.todayEvents.filter { $0.endDate > Date() }
-    }
-
-    private func isInProgress(_ event: CalendarEvent) -> Bool {
-        event.startDate <= Date() && event.endDate > Date()
     }
 }

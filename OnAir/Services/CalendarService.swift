@@ -45,6 +45,17 @@ final class CalendarService: ObservableObject {
             .sorted()
     }
 
+    func fetchEvents(from startDate: Date, to endDate: Date, disabledCalendarIds: Set<String>) -> [CalendarEvent] {
+        let predicate = store.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+        let ekEvents = store.events(matching: predicate)
+
+        return ekEvents
+            .map { mapEvent($0) }
+            .filter { $0.shouldShow }
+            .filter { !disabledCalendarIds.contains($0.calendarId) }
+            .sorted()
+    }
+
     func startObserving(onChange: @escaping () -> Void) {
         NotificationCenter.default.addObserver(
             forName: .EKEventStoreChanged,

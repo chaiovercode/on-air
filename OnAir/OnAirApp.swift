@@ -7,7 +7,8 @@ struct OnAirApp: App {
 
     var body: some Scene {
         Settings {
-            EmptyView()
+            SettingsView(appState: appDelegate.appState, settings: appDelegate.appState.settings)
+                .frame(width: 420, height: 500)
         }
     }
 }
@@ -16,7 +17,7 @@ struct OnAirApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var statusBarManager: StatusBarManager?
-    private let appState = AppState()
+    let appState = AppState()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusBarManager = StatusBarManager(appState: appState)
