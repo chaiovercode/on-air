@@ -107,6 +107,12 @@ final class StatusBarManager: NSObject {
     }
 
     @objc private func togglePanel() {
+        // Stop countdown sound on any click
+        if appState.countdownPlayer.isPlaying {
+            appState.countdownPlayer.stop()
+            appState.countdownActive = false
+        }
+
         guard let panel, let button = statusItem?.button else { return }
 
         if panel.isVisible {
