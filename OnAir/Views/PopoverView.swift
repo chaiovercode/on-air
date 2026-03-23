@@ -58,6 +58,26 @@ struct PopoverView: View {
             }
         }
         .frame(width: 380, height: 600)
+        .overlay(alignment: .top) {
+            if showSearch {
+                SearchView(appState: appState, isPresented: $showSearch)
+                    .background(.regularMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .shadow(radius: 16)
+                    .padding(.horizontal, 14)
+                    .padding(.top, 54)
+            }
+        }
+        .overlay(alignment: .top) {
+            if showNewEvent {
+                NewEventView(appState: appState, isPresented: $showNewEvent)
+                    .background(.regularMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .shadow(radius: 16)
+                    .padding(.horizontal, 14)
+                    .padding(.top, 54)
+            }
+        }
     }
 
     // MARK: - Header Toolbar (Dot-style)
