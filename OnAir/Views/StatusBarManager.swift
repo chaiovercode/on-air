@@ -6,7 +6,7 @@ import SwiftUI
 final class StatusBarManager: NSObject {
 
     private var statusItem: NSStatusItem?
-    private var popover: NSPopover?
+    private var panel: FloatingPanel?
     private let appState: AppState
     private var cancellables = Set<AnyCancellable>()
     private var eventMonitor: Any?
@@ -17,7 +17,7 @@ final class StatusBarManager: NSObject {
         self.appState = appState
         super.init()
         setupStatusItem()
-        setupPopover()
+        setupPanel()
         observeState()
     }
 
@@ -26,20 +26,14 @@ final class StatusBarManager: NSObject {
 
         if let button = statusItem?.button {
             updateTitle()
-            button.action = #selector(togglePopover)
+            button.action = #selector(togglePanel)
             button.target = self
         }
     }
 
-    private func setupPopover() {
-        popover = NSPopover()
-        popover?.contentSize = NSSize(width: 360, height: 500)
-        popover?.behavior = .transient
-        popover?.hasFullSizeContent = true
-        let hostingController = NSHostingController(
-            rootView: PopoverView(appState: appState)
-        )
-        popover?.contentViewController = hostingController
+    private func setupPanel() {
+        let hostingView = NSHostingView(rootView: PopoverView(appState: appState))
+        panel = FloatingPanel(contentView: hostingView)
     }
 
     private func observeState() {
@@ -58,7 +52,6 @@ final class StatusBarManager: NSObject {
         let seconds = appState.secondsUntilNext
         let shouldBlink = seconds > 0 && seconds <= 10
 
-        // Start or stop blink timer
         if shouldBlink && blinkTimer == nil {
             blinkVisible = true
             blinkTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
@@ -81,7 +74,6 @@ final class StatusBarManager: NSObject {
         let text = appState.menuBarText
         let attributed = NSMutableAttributedString()
 
-        // Add colored dot based on state
         let dotColor: NSColor
         if appState.calendarAccessDenied {
             dotColor = .systemOrange
@@ -103,10 +95,8 @@ final class StatusBarManager: NSObject {
         attributed.append(NSAttributedString(attachment: dotAttachment))
         attributed.append(NSAttributedString(string: " "))
 
-        // Strip the "● " prefix from menuBarText since we're using a real dot
         let textWithoutDot = text.hasPrefix("●") ? String(text.dropFirst(2)) : text
 
-        // Blink effect: alternate between visible and hidden text
         let textAlpha: CGFloat = blinkHidden ? 0.0 : 1.0
         attributed.append(NSAttributedString(string: textWithoutDot, attributes: [
             .font: NSFont.menuBarFont(ofSize: 0),
@@ -116,22 +106,35 @@ final class StatusBarManager: NSObject {
         button.attributedTitle = attributed
     }
 
-    @objc private func togglePopover() {
-        guard let popover, let button = statusItem?.button else { return }
+    @objc private func togglePanel() {
+        guard let panel, let button = statusItem?.button else { return }
 
-        if popover.isShown {
-            popover.performClose(nil)
-            stopEventMonitor()
+        if panel.isVisible {
+            hidePanel()
         } else {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            // Position below the status bar button
+            guard let buttonWindow = button.window else { return }
+            let buttonRect = button.convert(button.bounds, to: nil)
+            let screenRect = buttonWindow.convertToScreen(buttonRect)
+
+            let panelWidth = panel.frame.width
+            let x = screenRect.midX - panelWidth / 2
+            let y = screenRect.minY - 6
+
+            panel.setFrameTopLeftPoint(NSPoint(x: x, y: y))
+            panel.makeKeyAndOrderFront(nil)
             startEventMonitor()
         }
     }
 
+    private func hidePanel() {
+        panel?.orderOut(nil)
+        stopEventMonitor()
+    }
+
     private func startEventMonitor() {
         eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            self?.popover?.performClose(nil)
-            self?.stopEventMonitor()
+            self?.hidePanel()
         }
     }
 
@@ -139,6 +142,63 @@ final class StatusBarManager: NSObject {
         if let monitor = eventMonitor {
             NSEvent.removeMonitor(monitor)
             eventMonitor = nil
+        }
+    }
+}
+
+// MARK: - Floating Panel (Custom Window)
+
+final class FloatingPanel: NSPanel {
+
+    init(contentView: NSView) {
+        super.init(
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 500),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: true
+        )
+
+        isOpaque = false
+        backgroundColor = .clear
+        level = .statusBar
+        hasShadow = true
+        isMovableByWindowBackground = false
+        hidesOnDeactivate = true
+        animationBehavior = .utilityWindow
+
+        // Glass background with vibrancy
+        let rect = self.contentRect(forFrameRect: frame)
+        let visualEffect = NSVisualEffectView()
+        visualEffect.material = NSVisualEffectView.Material.hudWindow
+        visualEffect.state = NSVisualEffectView.State.active
+        visualEffect.blendingMode = NSVisualEffectView.BlendingMode.behindWindow
+        visualEffect.wantsLayer = true
+        visualEffect.layer?.cornerRadius = 16
+        visualEffect.layer?.masksToBounds = true
+        visualEffect.frame = rect
+
+        self.contentView = visualEffect
+
+        // Add SwiftUI content
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        visualEffect.addSubview(contentView)
+        NSLayoutConstraint.activate([
+            contentView.topAnchor.constraint(equalTo: visualEffect.topAnchor),
+            contentView.bottomAnchor.constraint(equalTo: visualEffect.bottomAnchor),
+            contentView.leadingAnchor.constraint(equalTo: visualEffect.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: visualEffect.trailingAnchor),
+        ])
+    }
+
+    // Allow the panel to become key so controls work
+    override var canBecomeKey: Bool { true }
+
+    // Close on Escape
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { // Escape
+            orderOut(nil)
+        } else {
+            super.keyDown(with: event)
         }
     }
 }
