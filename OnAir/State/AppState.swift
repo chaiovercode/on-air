@@ -102,6 +102,11 @@ final class AppState: ObservableObject {
                 let remaining = Int(next.startDate.timeIntervalSinceNow)
                 self.secondsUntilNext = max(remaining, 0)
 
+                // Check if countdown sound should start (may have been missed by 60s poll)
+                if remaining <= self.settings.leadTimeSeconds && remaining > 0 && !self.countdownScheduled {
+                    self.scheduleCountdown(for: next)
+                }
+
                 if remaining <= 0 {
                     self.stopCountdown()
                     self.refreshEvents()

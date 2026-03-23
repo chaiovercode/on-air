@@ -21,27 +21,27 @@ struct PopoverView: View {
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-
-            Divider()
+            .padding(.top, 14)
+            .padding(.bottom, 10)
 
             // Tab content
-            switch selectedTab {
-            case .meetings:
-                meetingListView
-            case .stats:
-                StatsView(statsService: appState.statsService)
-            case .settings:
-                SettingsView(appState: appState, settings: appState.settings)
+            Group {
+                switch selectedTab {
+                case .meetings:
+                    meetingListView
+                case .stats:
+                    StatsView(statsService: appState.statsService)
+                case .settings:
+                    SettingsView(appState: appState, settings: appState.settings)
+                }
             }
 
-            Divider()
+            Spacer(minLength: 0)
 
             // Footer
             footer
         }
-        .frame(width: 340)
-        .glassEffect(.regular.interactive())
+        .frame(width: 340, height: 480)
     }
 
     private var meetingListView: some View {
@@ -59,16 +59,16 @@ struct PopoverView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 3) {
             Text("Today")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 15, weight: .semibold))
 
             Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()))
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
             + Text(" · \(visibleEvents.count) meeting\(visibleEvents.count == 1 ? "" : "s")")
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
@@ -77,7 +77,7 @@ struct PopoverView: View {
 
     private var meetingsList: some View {
         ScrollView {
-            LazyVStack(spacing: 6) {
+            LazyVStack(spacing: 4) {
                 ForEach(visibleEvents) { event in
                     MeetingRowView(
                         event: event,
@@ -87,20 +87,24 @@ struct PopoverView: View {
                     )
                 }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 10)
             .padding(.vertical, 4)
         }
-        .frame(maxHeight: 300)
+        .frame(maxHeight: 340)
     }
 
     private var calendarAccessView: some View {
         VStack(spacing: 12) {
-            Text("⚠ Calendar Access Needed")
+            Image(systemName: "calendar.badge.exclamationmark")
+                .font(.system(size: 28))
+                .foregroundStyle(.orange)
+
+            Text("Calendar Access Needed")
                 .font(.system(size: 13, weight: .medium))
 
             Text("Grant access in System Settings → Privacy & Security → Calendars")
                 .font(.system(size: 11))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
             Button("Open System Settings") {
@@ -111,27 +115,28 @@ struct PopoverView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
         }
-        .padding(24)
+        .padding(30)
     }
 
     private var noMeetingsView: some View {
         VStack(spacing: 8) {
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: 24))
+                .foregroundStyle(.green)
             Text("No meetings today")
                 .font(.system(size: 13))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
-        .padding(24)
+        .frame(maxWidth: .infinity)
+        .padding(30)
     }
 
     private var footer: some View {
         HStack {
             if appState.soundWarning {
-                HStack(spacing: 4) {
-                    Circle().fill(.orange).frame(width: 6, height: 6)
-                    Text("Sound issue — check Settings")
-                        .font(.system(size: 10))
-                        .foregroundColor(.orange)
-                }
+                Label("Sound issue", systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.orange)
             }
 
             Spacer()
@@ -139,12 +144,9 @@ struct PopoverView: View {
             Button {
                 NSApplication.shared.terminate(nil)
             } label: {
-                HStack(spacing: 4) {
-                    Text("⏻")
-                    Text("Quit OnAir")
-                }
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
+                Label("Quit OnAir", systemImage: "power")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
         }

@@ -6,7 +6,7 @@ struct StatsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 12) {
+            VStack(spacing: 10) {
                 summaryCard
                 if !statsService.records.isEmpty {
                     busiestDaysCard
@@ -15,7 +15,7 @@ struct StatsView: View {
                     topMeetingsCard
                 }
             }
-            .padding(16)
+            .padding(12)
         }
     }
 
@@ -24,99 +24,72 @@ struct StatsView: View {
     private var summaryCard: some View {
         VStack(spacing: 8) {
             if statsService.records.isEmpty {
-                Text("No meetings tracked yet")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-                    .padding(.vertical, 20)
+                VStack(spacing: 8) {
+                    Image(systemName: "chart.bar")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.tertiary)
+                    Text("No meetings tracked yet")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                    Text("Stats will appear as you attend meetings")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.vertical, 24)
             } else {
-                HStack(spacing: 16) {
+                HStack(spacing: 0) {
                     statItem(value: "\(statsService.meetingsThisWeek)", label: "This Week")
                     Divider().frame(height: 30)
                     statItem(value: "\(statsService.meetingsThisMonth)", label: "This Month")
                     Divider().frame(height: 30)
                     statItem(value: statsService.totalHoursDisplay, label: "Total Hours")
                 }
-                .padding(.vertical, 8)
+                .padding(.vertical, 10)
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(12)
-        .glassEffect(.regular.interactive())
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.05)))
     }
 
     private func statItem(value: String, label: String) -> some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 3) {
             Text(value)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .font(.system(size: 20, weight: .bold, design: .rounded))
             Text(label)
                 .font(.system(size: 10))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Busiest Days
+    // MARK: - Cards
 
     private var busiestDaysCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("BUSIEST DAYS")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.secondary)
-                .tracking(1)
-
+        statsCard(title: "BUSIEST DAYS") {
             ForEach(statsService.busiestDays.prefix(5), id: \.dayOfWeek) { day in
-                barRow(label: day.dayOfWeek, percentage: day.percentage, count: day.count)
+                barRow(label: day.dayOfWeek, percentage: day.percentage)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .glassEffect(.regular.interactive())
     }
-
-    // MARK: - Platforms
 
     private var platformsCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("PLATFORMS")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.secondary)
-                .tracking(1)
-
+        statsCard(title: "PLATFORMS") {
             ForEach(statsService.platformBreakdown, id: \.platform) { item in
-                barRow(label: item.platform, percentage: item.percentage, count: item.count)
+                barRow(label: item.platform, percentage: item.percentage)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .glassEffect(.regular.interactive())
     }
-
-    // MARK: - Peak Hours
 
     private var peakHoursCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("PEAK HOURS")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.secondary)
-                .tracking(1)
-
+        statsCard(title: "PEAK HOURS") {
             ForEach(statsService.peakHours.prefix(5), id: \.hour) { item in
-                barRow(label: item.hour, percentage: item.percentage, count: item.count)
+                barRow(label: item.hour, percentage: item.percentage)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .glassEffect(.regular.interactive())
     }
 
-    // MARK: - Top Meetings
-
     private var topMeetingsCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("TOP MEETINGS")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(.secondary)
-                .tracking(1)
-
+        statsCard(title: "TOP MEETINGS") {
             ForEach(statsService.topMeetings, id: \.title) { item in
                 HStack {
                     Text(item.title)
@@ -124,19 +97,30 @@ struct StatsView: View {
                         .lineLimit(1)
                     Spacer()
                     Text("\(item.count)x")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .glassEffect(.regular.interactive())
     }
 
-    // MARK: - Bar Row Helper
+    // MARK: - Helpers
 
-    private func barRow(label: String, percentage: Double, count: Int) -> some View {
+    private func statsCard<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .tracking(1)
+
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.05)))
+    }
+
+    private func barRow(label: String, percentage: Double) -> some View {
         HStack(spacing: 8) {
             Text(label)
                 .font(.system(size: 11))
@@ -145,14 +129,14 @@ struct StatsView: View {
 
             GeometryReader { geo in
                 RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.accentColor.opacity(0.7))
+                    .fill(.tint.opacity(0.6))
                     .frame(width: max(geo.size.width * percentage / 100, 4))
             }
             .frame(height: 14)
 
             Text("\(Int(percentage))%")
-                .font(.system(size: 10, design: .rounded))
-                .foregroundColor(.secondary)
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
                 .frame(width: 32, alignment: .trailing)
         }
     }

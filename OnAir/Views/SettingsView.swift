@@ -11,21 +11,19 @@ struct SettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(spacing: 10) {
                     countdownSection
                     displaySection
                     statsSection
                     generalSection
                 }
-                .padding(16)
+                .padding(12)
             }
-
-            Divider()
 
             Text("OnAir v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")")
                 .font(.system(size: 10))
-                .foregroundColor(.secondary)
-                .padding(.vertical, 8)
+                .foregroundStyle(.tertiary)
+                .padding(.vertical, 6)
         }
         .frame(width: 340)
     }
