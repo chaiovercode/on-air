@@ -33,7 +33,7 @@ final class StatusBarManager: NSObject {
 
     private func setupPopover() {
         popover = NSPopover()
-        popover?.contentSize = NSSize(width: 340, height: 480)
+        popover?.contentSize = NSSize(width: 360, height: 500)
         popover?.behavior = .transient
         popover?.hasFullSizeContent = true
         let hostingController = NSHostingController(

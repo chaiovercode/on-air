@@ -20,11 +20,11 @@ struct PopoverView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
 
-            // Tab content
+            // Content
             Group {
                 switch selectedTab {
                 case .meetings:
@@ -35,49 +35,57 @@ struct PopoverView: View {
                     SettingsView(appState: appState, settings: appState.settings)
                 }
             }
-
-            Spacer(minLength: 0)
+            .frame(maxHeight: .infinity)
 
             // Footer
             footer
+                .padding(.top, 4)
         }
-        .frame(width: 340, height: 480)
+        .frame(width: 360, height: 500)
     }
+
+    // MARK: - Meetings Tab
 
     private var meetingListView: some View {
         VStack(spacing: 0) {
-            header
-
             if appState.calendarAccessDenied {
                 calendarAccessView
-            } else if appState.todayEvents.isEmpty {
+            } else if visibleEvents.isEmpty {
                 noMeetingsView
             } else {
+                header
                 meetingsList
             }
         }
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text("Today")
-                .font(.system(size: 15, weight: .semibold))
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Today")
+                    .font(.system(size: 16, weight: .bold))
 
-            Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()))
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-            + Text(" · \(visibleEvents.count) meeting\(visibleEvents.count == 1 ? "" : "s")")
-                .font(.system(size: 12))
+                Text(Date().formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Text("\(visibleEvents.count)")
+                .font(.system(size: 22, weight: .heavy, design: .rounded))
+                .foregroundStyle(.red)
+            + Text(" meeting\(visibleEvents.count == 1 ? "" : "s")")
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
     }
 
     private var meetingsList: some View {
         ScrollView {
-            LazyVStack(spacing: 4) {
+            LazyVStack(spacing: 2) {
                 ForEach(visibleEvents) { event in
                     MeetingRowView(
                         event: event,
@@ -87,48 +95,50 @@ struct PopoverView: View {
                     )
                 }
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 12)
             .padding(.vertical, 4)
         }
-        .frame(maxHeight: 340)
     }
 
     private var calendarAccessView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             Image(systemName: "calendar.badge.exclamationmark")
-                .font(.system(size: 28))
+                .font(.system(size: 32, weight: .light))
                 .foregroundStyle(.orange)
 
-            Text("Calendar Access Needed")
-                .font(.system(size: 13, weight: .medium))
+            Text("Calendar Access")
+                .font(.system(size: 15, weight: .semibold))
 
-            Text("Grant access in System Settings → Privacy & Security → Calendars")
-                .font(.system(size: 11))
+            Text("OnAir needs access to show\nyour meetings.")
+                .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            Button("Open System Settings") {
+            Button("Open Settings") {
                 if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") {
                     NSWorkspace.shared.open(url)
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
+            .controlSize(.large)
         }
-        .padding(30)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(32)
     }
 
     private var noMeetingsView: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "checkmark.circle")
-                .font(.system(size: 24))
-                .foregroundStyle(.green)
+        VStack(spacing: 12) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 32, weight: .light))
+                .foregroundStyle(.green.opacity(0.8))
+
+            Text("All clear")
+                .font(.system(size: 15, weight: .semibold))
+
             Text("No meetings today")
-                .font(.system(size: 13))
+                .font(.system(size: 12))
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity)
-        .padding(30)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var footer: some View {
@@ -138,21 +148,21 @@ struct PopoverView: View {
                     .font(.system(size: 10))
                     .foregroundStyle(.orange)
             }
-
             Spacer()
-
             Button {
                 NSApplication.shared.terminate(nil)
             } label: {
-                Label("Quit OnAir", systemImage: "power")
+                Text("Quit")
                     .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 12)
     }
+
+    // MARK: - Helpers
 
     private var visibleEvents: [CalendarEvent] {
         if appState.settings.showPastMeetings {
