@@ -13,7 +13,12 @@ final class CalendarService: ObservableObject {
 
     func requestAccess() async -> Bool {
         do {
-            let granted = try await store.requestFullAccessToEvents()
+            let granted: Bool
+            if #available(macOS 14.0, *) {
+                granted = try await store.requestFullAccessToEvents()
+            } else {
+                granted = try await store.requestAccess(to: .event)
+            }
             await MainActor.run {
                 authorizationStatus = granted ? .authorized : .denied
                 if granted { loadCalendars() }

@@ -8,7 +8,7 @@ struct PopoverView: View {
     var body: some View {
         VStack(spacing: 0) {
             if showSettings {
-                SettingsView(appState: appState, showSettings: $showSettings)
+                SettingsView(appState: appState, settings: appState.settings, showSettings: $showSettings)
             } else {
                 meetingListView
             }

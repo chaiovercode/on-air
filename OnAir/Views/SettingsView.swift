@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
 
     @ObservedObject var appState: AppState
+    @ObservedObject var settings: UserSettings
     @Binding var showSettings: Bool
 
     var body: some View {
@@ -55,7 +56,7 @@ struct SettingsView: View {
                 Text("Lead time")
                     .font(.system(size: 12))
                 Spacer()
-                Picker("", selection: $appState.settings.leadTimeSeconds) {
+                Picker("", selection: $settings.leadTimeSeconds) {
                     ForEach(UserSettings.LeadTimePreset.allCases, id: \.rawValue) { preset in
                         Text(preset.displayName).tag(preset.seconds)
                     }
@@ -68,9 +69,9 @@ struct SettingsView: View {
                 Text("Volume")
                     .font(.system(size: 12))
                 Spacer()
-                Slider(value: $appState.settings.volume, in: 0...1)
+                Slider(value: $settings.volume, in: 0...1)
                     .frame(width: 140)
-                    .onChange(of: appState.settings.volume) { _, newValue in
+                    .onChange(of: settings.volume) { newValue in
                         appState.countdownPlayer.updateVolume(Float(newValue))
                     }
             }
@@ -92,8 +93,8 @@ struct SettingsView: View {
                 Spacer()
                 Button {
                     appState.countdownPlayer.playTestSound(
-                        customPath: appState.settings.customSoundPath,
-                        volume: Float(appState.settings.volume)
+                        customPath: settings.customSoundPath,
+                        volume: Float(settings.volume)
                     )
                 } label: {
                     HStack(spacing: 4) {
@@ -110,7 +111,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 10) {
             sectionHeader("DISPLAY")
 
-            Toggle("Show past meetings", isOn: $appState.settings.showPastMeetings)
+            Toggle("Show past meetings", isOn: $settings.showPastMeetings)
                 .font(.system(size: 12))
                 .toggleStyle(.switch)
                 .controlSize(.small)
@@ -121,9 +122,9 @@ struct SettingsView: View {
 
                 ForEach(appState.calendarService.availableCalendars, id: \.id) { cal in
                     Toggle(cal.title, isOn: Binding(
-                        get: { appState.settings.isCalendarEnabled(cal.id) },
+                        get: { settings.isCalendarEnabled(cal.id) },
                         set: { _ in
-                            appState.settings.toggleCalendar(cal.id)
+                            settings.toggleCalendar(cal.id)
                             appState.refreshEvents()
                         }
                     ))
@@ -140,9 +141,9 @@ struct SettingsView: View {
             sectionHeader("GENERAL")
 
             Toggle("Launch at login", isOn: Binding(
-                get: { appState.settings.launchAtLogin },
+                get: { settings.launchAtLogin },
                 set: { newValue in
-                    appState.settings.launchAtLogin = newValue
+                    settings.launchAtLogin = newValue
                     updateLoginItem(enabled: newValue)
                 }
             ))
@@ -160,7 +161,7 @@ struct SettingsView: View {
     }
 
     private var soundLabel: String {
-        if let path = appState.settings.customSoundPath {
+        if let path = settings.customSoundPath {
             return URL(fileURLWithPath: path).lastPathComponent
         }
         return "Default"
@@ -193,7 +194,7 @@ struct SettingsView: View {
 
         do {
             try FileManager.default.copyItem(at: sourceURL, to: dest)
-            appState.settings.customSoundPath = dest.path
+            settings.customSoundPath = dest.path
             appState.soundWarning = false
         } catch {
             appState.soundWarning = true
