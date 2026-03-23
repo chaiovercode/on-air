@@ -1,26 +1,52 @@
 import SwiftUI
 
+enum PopoverTab: String, CaseIterable {
+    case meetings = "Meetings"
+    case stats = "Stats"
+    case settings = "Settings"
+}
+
 struct PopoverView: View {
 
     @ObservedObject var appState: AppState
-    @State private var showSettings = false
+    @State private var selectedTab: PopoverTab = .meetings
 
     var body: some View {
         VStack(spacing: 0) {
-            if showSettings {
-                SettingsView(appState: appState, settings: appState.settings, showSettings: $showSettings)
-            } else {
-                meetingListView
+            // Tab bar
+            Picker("", selection: $selectedTab) {
+                ForEach(PopoverTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
             }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+
+            Divider()
+
+            // Tab content
+            switch selectedTab {
+            case .meetings:
+                meetingListView
+            case .stats:
+                StatsView(statsService: appState.statsService)
+            case .settings:
+                SettingsView(appState: appState, settings: appState.settings)
+            }
+
+            Divider()
+
+            // Footer
+            footer
         }
-        .frame(width: 320)
+        .frame(width: 340)
+        .glassEffect(.regular.interactive())
     }
 
     private var meetingListView: some View {
         VStack(spacing: 0) {
             header
-
-            Divider()
 
             if appState.calendarAccessDenied {
                 calendarAccessView
@@ -29,10 +55,6 @@ struct PopoverView: View {
             } else {
                 meetingsList
             }
-
-            Divider()
-
-            footer
         }
     }
 
@@ -55,7 +77,7 @@ struct PopoverView: View {
 
     private var meetingsList: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
+            LazyVStack(spacing: 6) {
                 ForEach(visibleEvents) { event in
                     MeetingRowView(
                         event: event,
@@ -65,6 +87,8 @@ struct PopoverView: View {
                     )
                 }
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
         }
         .frame(maxHeight: 300)
     }
@@ -101,23 +125,12 @@ struct PopoverView: View {
 
     private var footer: some View {
         HStack {
-            Button {
-                showSettings = true
-            } label: {
+            if appState.soundWarning {
                 HStack(spacing: 4) {
-                    Text("⚙")
-                    Text("Settings")
-                }
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
-            .overlay {
-                if appState.soundWarning {
-                    Circle()
-                        .fill(.orange)
-                        .frame(width: 6, height: 6)
-                        .offset(x: -8, y: -6)
+                    Circle().fill(.orange).frame(width: 6, height: 6)
+                    Text("Sound issue — check Settings")
+                        .font(.system(size: 10))
+                        .foregroundColor(.orange)
                 }
             }
 

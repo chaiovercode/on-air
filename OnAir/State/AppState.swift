@@ -19,12 +19,14 @@ final class AppState: ObservableObject {
     let settings = UserSettings()
     let calendarService = CalendarService()
     let countdownPlayer = CountdownPlayer()
+    let statsService = StatsService()
 
     // MARK: - Private
 
     private var pollTimer: Timer?
     private var tickTimer: Timer?
     private var countdownScheduled = false
+    private var lastRecordedEventId: String?
 
     // MARK: - Lifecycle
 
@@ -81,7 +83,12 @@ final class AppState: ObservableObject {
             scheduleCountdown(for: next)
         }
 
+        // Record attendance
         if remaining <= 0 {
+            if let next = nextEvent, next.id != lastRecordedEventId && settings.trackStats {
+                statsService.recordAttendance(next)
+                lastRecordedEventId = next.id
+            }
             countdownActive = false
             countdownScheduled = false
         }

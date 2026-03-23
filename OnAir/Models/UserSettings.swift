@@ -24,7 +24,7 @@ final class UserSettings: ObservableObject {
 
     static let allKeys = [
         "leadTimeSeconds", "volume", "showPastMeetings",
-        "launchAtLogin", "customSoundPath", "disabledCalendarIds"
+        "launchAtLogin", "customSoundPath", "disabledCalendarIds", "trackStats"
     ]
 
     private let defaults: UserDefaults
@@ -35,6 +35,7 @@ final class UserSettings: ObservableObject {
         self.volume = defaults.object(forKey: "volume") as? Double ?? 0.75
         self.showPastMeetings = defaults.bool(forKey: "showPastMeetings")
         self.launchAtLogin = defaults.bool(forKey: "launchAtLogin")
+        self.trackStats = defaults.object(forKey: "trackStats") as? Bool ?? true
         self.customSoundPath = defaults.string(forKey: "customSoundPath")
         if let data = defaults.data(forKey: "disabledCalendarIds") {
             self._disabledCalendarIds = (try? JSONDecoder().decode(Set<String>.self, from: data)) ?? []
@@ -55,6 +56,10 @@ final class UserSettings: ObservableObject {
 
     @Published var launchAtLogin: Bool = false {
         didSet { defaults.set(launchAtLogin, forKey: "launchAtLogin") }
+    }
+
+    @Published var trackStats: Bool = true {
+        didSet { defaults.set(trackStats, forKey: "trackStats") }
     }
 
     @Published var customSoundPath: String? {

@@ -80,7 +80,8 @@ struct MeetingRowView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(isNext ? Color.red.opacity(0.06) : Color.clear)
+        .background(isNext ? Color.red.opacity(0.08) : Color.clear)
         .opacity(isPast ? 0.5 : 1.0)
+        .glassEffect(.regular.interactive())
     }
 }

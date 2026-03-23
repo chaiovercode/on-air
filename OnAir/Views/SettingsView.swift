@@ -6,33 +6,15 @@ struct SettingsView: View {
 
     @ObservedObject var appState: AppState
     @ObservedObject var settings: UserSettings
-    @Binding var showSettings: Bool
+    @State private var showClearConfirmation = false
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Button {
-                    showSettings = false
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                        Text("Settings")
-                    }
-                    .font(.system(size: 13, weight: .medium))
-                }
-                .buttonStyle(.plain)
-
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-
-            Divider()
-
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     countdownSection
                     displaySection
+                    statsSection
                     generalSection
                 }
                 .padding(16)
@@ -45,7 +27,7 @@ struct SettingsView: View {
                 .foregroundColor(.secondary)
                 .padding(.vertical, 8)
         }
-        .frame(width: 320)
+        .frame(width: 340)
     }
 
     private var countdownSection: some View {
@@ -132,6 +114,33 @@ struct SettingsView: View {
                     .toggleStyle(.checkbox)
                     .padding(.leading, 8)
                 }
+            }
+        }
+    }
+
+    private var statsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader("STATS")
+
+            Toggle("Track meeting stats", isOn: $settings.trackStats)
+                .font(.system(size: 12))
+                .toggleStyle(.switch)
+                .controlSize(.small)
+
+            Button(role: .destructive) {
+                showClearConfirmation = true
+            } label: {
+                Text("Clear All Stats")
+                    .font(.system(size: 12))
+            }
+            .controlSize(.small)
+            .alert("Clear all meeting stats?", isPresented: $showClearConfirmation) {
+                Button("Clear", role: .destructive) {
+                    appState.statsService.clearAll()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This cannot be undone.")
             }
         }
     }
