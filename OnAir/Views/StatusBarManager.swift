@@ -106,7 +106,13 @@ final class StatusBarManager: NSObject {
         button.attributedTitle = attributed
     }
 
-    @objc private func togglePanel() {
+    @objc nonisolated private func togglePanel() {
+        Task { @MainActor in
+            self.doTogglePanel()
+        }
+    }
+
+    private func doTogglePanel() {
         // Stop countdown sound on any click
         if appState.countdownPlayer.isPlaying {
             appState.countdownPlayer.stop()
