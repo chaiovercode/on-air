@@ -10,6 +10,8 @@ final class StatusBarManager: NSObject {
     private let appState: AppState
     private var cancellables = Set<AnyCancellable>()
     private var eventMonitor: Any?
+    private var blinkTimer: Timer?
+    private var blinkVisible = true
 
     init(appState: AppState) {
         self.appState = appState
@@ -51,6 +53,29 @@ final class StatusBarManager: NSObject {
     private func updateTitle() {
         guard let button = statusItem?.button else { return }
 
+        let seconds = appState.secondsUntilNext
+        let shouldBlink = seconds > 0 && seconds <= 10
+
+        // Start or stop blink timer
+        if shouldBlink && blinkTimer == nil {
+            blinkVisible = true
+            blinkTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.blinkVisible.toggle()
+                    self.renderTitle(button: button, blinkHidden: !self.blinkVisible)
+                }
+            }
+        } else if !shouldBlink && blinkTimer != nil {
+            blinkTimer?.invalidate()
+            blinkTimer = nil
+            blinkVisible = true
+        }
+
+        renderTitle(button: button, blinkHidden: shouldBlink && !blinkVisible)
+    }
+
+    private func renderTitle(button: NSStatusBarButton, blinkHidden: Bool) {
         let text = appState.menuBarText
         let attributed = NSMutableAttributedString()
 
@@ -78,8 +103,12 @@ final class StatusBarManager: NSObject {
 
         // Strip the "● " prefix from menuBarText since we're using a real dot
         let textWithoutDot = text.hasPrefix("●") ? String(text.dropFirst(2)) : text
+
+        // Blink effect: alternate between visible and hidden text
+        let textAlpha: CGFloat = blinkHidden ? 0.0 : 1.0
         attributed.append(NSAttributedString(string: textWithoutDot, attributes: [
-            .font: NSFont.menuBarFont(ofSize: 0)
+            .font: NSFont.menuBarFont(ofSize: 0),
+            .foregroundColor: NSColor.labelColor.withAlphaComponent(textAlpha)
         ]))
 
         button.attributedTitle = attributed
