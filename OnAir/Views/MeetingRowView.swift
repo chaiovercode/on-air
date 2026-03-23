@@ -6,99 +6,111 @@ struct MeetingRowView: View {
     let isNext: Bool
     let isInProgress: Bool
     let isPast: Bool
+    let accentRed: Color
+
+    private var borderColor: Color {
+        if isInProgress { return .green }
+        if isNext { return accentRed }
+        return .secondary.opacity(0.3)
+    }
+
+    private var timeBadgeText: String? {
+        let now = Date()
+        if isInProgress {
+            let remaining = Int(event.endDate.timeIntervalSince(now) / 60)
+            return "\(remaining)m left"
+        } else if event.startDate > now {
+            let until = Int(event.startDate.timeIntervalSince(now) / 60)
+            if until <= 60 {
+                return "in \(until)m"
+            }
+        }
+        return nil
+    }
+
+    private var timeBadgeColor: Color {
+        if isInProgress { return .green }
+        return accentRed
+    }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            // Live indicator
-            statusIndicator
+        HStack(alignment: .top, spacing: 0) {
+            // Colored left border (Dot-style)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(borderColor)
+                .frame(width: 3)
+                .padding(.vertical, 2)
 
-            // Meeting info
-            VStack(alignment: .leading, spacing: 3) {
-                Text(event.title)
-                    .font(.system(size: 13, weight: isNext || isInProgress ? .semibold : .medium))
-                    .lineLimit(1)
+            VStack(alignment: .leading, spacing: 4) {
+                // Time range row
+                HStack {
+                    Text(timeRangeText)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
 
-                HStack(spacing: 4) {
-                    Text(event.startDate.formatted(date: .omitted, time: .shortened))
+                    Spacer()
 
-                    Text("·")
-
-                    Text(event.durationDisplay)
-
-                    if let link = event.meetingLink {
-                        Text("·")
-                        Text(link.platform.displayName)
+                    // Time badge
+                    if let badge = timeBadgeText {
+                        Text(badge)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(timeBadgeColor)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                    .fill(timeBadgeColor.opacity(0.15))
+                            )
                     }
                 }
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-            }
 
-            Spacer(minLength: 4)
+                // Title row
+                HStack(spacing: 8) {
+                    Text(event.title)
+                        .font(.system(size: 14, weight: .medium))
+                        .lineLimit(1)
 
-            // Action
-            if isInProgress {
-                liveBadge
-            } else if let link = event.meetingLink {
-                Button {
-                    NSWorkspace.shared.open(link.url)
-                } label: {
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 24, height: 24)
-                        .background(.blue, in: Circle())
+                    Spacer()
+
+                    if let link = event.meetingLink {
+                        Button {
+                            NSWorkspace.shared.open(link.url)
+                        } label: {
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.8))
+                                .frame(width: 22, height: 22)
+                                .background(
+                                    Circle().fill(.white.opacity(0.1))
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .help("Join \(link.platform.displayName)")
+                    }
                 }
-                .buttonStyle(.plain)
-                .help("Join \(link.platform.displayName)")
+
+                // Platform badge
+                if let link = event.meetingLink {
+                    Text(link.platform.displayName)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
             }
+            .padding(.leading, 10)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background {
-            if isNext || isInProgress {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(isNext ? .red.opacity(0.12) : .green.opacity(0.1))
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.vertical, 8)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(isInProgress ? .green.opacity(0.08) : isNext ? accentRed.opacity(0.06) : .clear)
+        )
         .opacity(isPast ? 0.4 : 1.0)
+        .padding(.vertical, 2)
     }
 
-    // MARK: - Components
-
-    @ViewBuilder
-    private var statusIndicator: some View {
-        if isInProgress {
-            // Pulsing green dot
-            Circle()
-                .fill(.green)
-                .frame(width: 8, height: 8)
-                .overlay(
-                    Circle()
-                        .stroke(.green.opacity(0.4), lineWidth: 2)
-                        .scaleEffect(1.6)
-                )
-        } else if isNext {
-            // Red dot — next up
-            Circle()
-                .fill(.red)
-                .frame(width: 8, height: 8)
-        } else {
-            // Subtle ring
-            Circle()
-                .stroke(.quaternary, lineWidth: 1.5)
-                .frame(width: 8, height: 8)
-        }
-    }
-
-    private var liveBadge: some View {
-        Text("LIVE")
-            .font(.system(size: 9, weight: .heavy, design: .rounded))
-            .tracking(1)
-            .foregroundStyle(.white)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(.green, in: Capsule())
+    private var timeRangeText: String {
+        let start = event.startDate.formatted(date: .omitted, time: .shortened)
+        let end = event.endDate.formatted(date: .omitted, time: .shortened)
+        return "\(start) – \(end)"
     }
 }

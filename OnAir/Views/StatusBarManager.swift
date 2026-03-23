@@ -175,7 +175,7 @@ final class FloatingPanel: NSPanel {
         // Glass background with vibrancy
         let rect = self.contentRect(forFrameRect: frame)
         let visualEffect = NSVisualEffectView()
-        visualEffect.material = NSVisualEffectView.Material.hudWindow
+        visualEffect.material = NSVisualEffectView.Material.popover
         visualEffect.state = NSVisualEffectView.State.active
         visualEffect.blendingMode = NSVisualEffectView.BlendingMode.behindWindow
         visualEffect.wantsLayer = true
