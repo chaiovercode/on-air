@@ -48,7 +48,7 @@ struct CalendarGridView: View {
             // Month header with navigation
             HStack {
                 Text(monthYearString)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
 
                 Spacer()
 

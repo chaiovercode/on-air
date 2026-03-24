@@ -103,9 +103,9 @@ struct AgendaView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Text(day.headerText)
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 11, weight: .heavy, design: .rounded))
                             .foregroundStyle(accentRed)
-                            .tracking(1.5)
+                            .tracking(1.2)
                         Image(systemName: "arrow.left.arrow.right")
                             .font(.system(size: 8, weight: .bold))
                             .foregroundStyle(accentRed.opacity(0.5))
@@ -114,9 +114,9 @@ struct AgendaView: View {
                 .buttonStyle(.plain)
             } else {
                 Text(day.headerText)
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
                     .foregroundStyle(.secondary)
-                    .tracking(1.5)
+                    .tracking(1.2)
             }
 
             Spacer()

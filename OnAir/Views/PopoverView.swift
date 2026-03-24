@@ -207,7 +207,7 @@ struct PopoverView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 0) {
                 Text("\(greeting), ")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                 if let nsImage = userProfileImage {
                     Image(nsImage: nsImage)
                         .resizable()
@@ -217,7 +217,7 @@ struct PopoverView: View {
                         .padding(.trailing, 4)
                 }
                 Text("\(firstName).")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
             }
 
             // Carousel: events count + birthdays (fixed height to prevent layout shift)
@@ -592,7 +592,7 @@ struct PopoverView: View {
 
     private var footer: some View {
         Text(worldClockLine)
-            .font(.system(size: 12.5, weight: .medium, design: .monospaced))
+            .font(.system(size: 12, weight: .medium, design: .rounded))
             .foregroundStyle(Color.white.opacity(0.35))
             .lineLimit(1)
             .minimumScaleFactor(0.8)

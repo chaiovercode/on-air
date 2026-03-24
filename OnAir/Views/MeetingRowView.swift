@@ -82,7 +82,7 @@ struct MeetingRowView: View {
                     // Time range row
                     HStack {
                         Text(timeRangeText)
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
                             .foregroundStyle(.secondary)
 
                         if hasConflict {
@@ -116,7 +116,7 @@ struct MeetingRowView: View {
                     // Title row
                     HStack(spacing: 8) {
                         Text(event.title)
-                            .font(.system(size: 15, weight: .medium))
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
                             .lineLimit(1)
 
                         Spacer()
