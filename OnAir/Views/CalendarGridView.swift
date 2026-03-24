@@ -163,7 +163,7 @@ struct CalendarGridView: View {
                                 Spacer()
                                 Image(systemName: "diamond.fill")
                                     .font(.system(size: 3.5))
-                                    .foregroundStyle(accentRed)
+                                    .foregroundStyle(isPast ? Color.gray.opacity(0.3) : accentRed)
                             }
                             Spacer()
                         }
@@ -177,7 +177,7 @@ struct CalendarGridView: View {
                 // Long weekend bottom bar / event dot
                 if isLongWeekend && isCurrentMonth {
                     RoundedRectangle(cornerRadius: 1)
-                        .fill(accentRed.opacity(0.7))
+                        .fill(isPast ? Color.gray.opacity(0.25) : accentRed.opacity(0.7))
                         .frame(width: 18, height: 3)
                 } else if !showHeatmap {
                     Circle()

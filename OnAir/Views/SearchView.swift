@@ -116,9 +116,7 @@ struct SearchView: View {
             Color.white.opacity(0.07).frame(height: 0.5)
 
             HStack(spacing: 16) {
-                shortcutHint("↑↓", label: "navigate")
-                shortcutHint("↵", label: "open")
-                shortcutHint("⌘C", label: "copy")
+                shortcutHint("ESC", label: "close")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -190,9 +188,10 @@ struct SearchView: View {
             to: endDate,
             disabledCalendarIds: appState.settings.disabledCalendarIds
         ).filter {
-            $0.title.lowercased().contains(query) ||
+            !$0.isAllDay &&
+            ($0.title.lowercased().contains(query) ||
             ($0.location?.lowercased().contains(query) ?? false) ||
-            ($0.notes?.lowercased().contains(query) ?? false)
+            ($0.notes?.lowercased().contains(query) ?? false))
         }
     }
 
@@ -203,6 +202,7 @@ struct SearchView: View {
         }
         return grouped
             .map { EventGroup(date: $0.key, events: $0.value) }
+            .filter { !$0.events.isEmpty }
             .sorted { $0.date < $1.date }
     }
 
