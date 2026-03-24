@@ -112,6 +112,26 @@ final class CalendarService: ObservableObject {
             .filter { !disabledCalendarIds.contains($0.calendarId) }
     }
 
+    /// Returns start-of-day dates that have all-day events from the specified holiday calendars
+    func fetchHolidays(from startDate: Date, to endDate: Date, holidayCalendarIds: Set<String>) -> Set<Date> {
+        guard !holidayCalendarIds.isEmpty else { return [] }
+        let predicate = store.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+        let cal = Calendar.current
+        var holidays = Set<Date>()
+        for event in store.events(matching: predicate) {
+            guard event.isAllDay,
+                  holidayCalendarIds.contains(event.calendar.calendarIdentifier) else { continue }
+            // Multi-day all-day events: add each day
+            var day = cal.startOfDay(for: event.startDate)
+            let end = cal.startOfDay(for: event.endDate)
+            while day < end {
+                holidays.insert(day)
+                day = cal.date(byAdding: .day, value: 1, to: day)!
+            }
+        }
+        return holidays
+    }
+
     private func mapEvent(_ ekEvent: EKEvent) -> CalendarEvent {
         CalendarEvent(
             id: ekEvent.eventIdentifier,

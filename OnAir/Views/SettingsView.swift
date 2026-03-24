@@ -533,6 +533,45 @@ struct SettingsView: View {
                     .padding(16)
                 }
 
+                Section("Long Weekends") {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Show long weekends")
+                                .font(.system(size: 13))
+                                .foregroundStyle(P.text1)
+                            Text("Highlight extended weekends around holidays in the calendar grid")
+                                .font(.system(size: 11))
+                                .foregroundStyle(P.text3)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $settings.showLongWeekends)
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                            .tint(Color(hex: settings.accentColorHex))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+
+                    if settings.showLongWeekends && !appState.calendarService.availableCalendars.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "diamond.fill")
+                                .font(.system(size: 5))
+                                .foregroundStyle(Color(hex: settings.accentColorHex).opacity(0.7))
+                            Text("Mark holiday calendars below to detect long weekends")
+                                .font(.system(size: 11))
+                                .foregroundStyle(P.text3)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+                    }
+
+                    // Upcoming holiday list (dismiss individual holidays)
+                    if settings.showLongWeekends && !settings.holidayCalendarIds.isEmpty {
+                        upcomingHolidaysList
+                    }
+                }
+
                 if !appState.calendarService.availableCalendars.isEmpty {
                     Section("Show Calendars") {
                         // Header: count + All/None
@@ -579,6 +618,33 @@ struct SettingsView: View {
                                     .foregroundStyle(settings.isCalendarEnabled(cal.id) ? P.text1 : P.text3)
                                     .lineLimit(1)
                                 Spacer()
+
+                                // Holiday chip (when long weekends is on)
+                                if settings.showLongWeekends {
+                                    Button {
+                                        settings.toggleHolidayCalendar(cal.id)
+                                    } label: {
+                                        HStack(spacing: 3) {
+                                            Image(systemName: settings.isHolidayCalendar(cal.id) ? "diamond.fill" : "diamond")
+                                                .font(.system(size: 6))
+                                            Text("Holiday")
+                                                .font(.system(size: 10, weight: .medium))
+                                        }
+                                        .foregroundStyle(settings.isHolidayCalendar(cal.id) ? Color(hex: settings.accentColorHex) : P.text3)
+                                        .padding(.horizontal, 7)
+                                        .padding(.vertical, 3)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                                .fill(settings.isHolidayCalendar(cal.id) ? Color(hex: settings.accentColorHex).opacity(0.12) : .clear)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                                .strokeBorder(settings.isHolidayCalendar(cal.id) ? Color(hex: settings.accentColorHex).opacity(0.3) : P.text3.opacity(0.3), lineWidth: 0.5)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+
                                 Toggle("", isOn: Binding(
                                     get: { settings.isCalendarEnabled(cal.id) },
                                     set: { _ in settings.toggleCalendar(cal.id); appState.refreshEvents() }
@@ -620,6 +686,85 @@ struct SettingsView: View {
             .padding(.horizontal, 24).padding(.vertical, 8)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Upcoming Holidays List
+
+    private var upcomingHolidaysList: some View {
+        let cal = Calendar.current
+        let now = Date()
+        let start = cal.startOfDay(for: now)
+        guard let end = cal.date(byAdding: .month, value: 3, to: start) else {
+            return AnyView(EmptyView())
+        }
+        let allDay = appState.calendarService.fetchAllDayEvents(
+            from: start, to: end, disabledCalendarIds: []
+        )
+        let holidayIds = settings.holidayCalendarIds
+        let holidays = allDay
+            .filter { holidayIds.contains($0.calendarId) }
+            .sorted { $0.startDate < $1.startDate }
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withFullDate]
+
+        let dateFmt = DateFormatter()
+        dateFmt.dateFormat = "MMM d, EEE"
+
+        if holidays.isEmpty {
+            return AnyView(EmptyView())
+        }
+
+        return AnyView(
+            VStack(alignment: .leading, spacing: 0) {
+                Text("UPCOMING HOLIDAYS")
+                    .font(.system(size: 9, weight: .heavy))
+                    .foregroundStyle(P.text3)
+                    .tracking(1.2)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 6)
+
+                ForEach(holidays, id: \.id) { holiday in
+                    let dateStr = formatter.string(from: cal.startOfDay(for: holiday.startDate))
+                    let dismissed = settings.isHolidayDismissed(dateStr)
+
+                    HStack(spacing: 10) {
+                        Button {
+                            settings.toggleHolidayDismissed(dateStr)
+                        } label: {
+                            Image(systemName: dismissed ? "xmark.circle.fill" : "checkmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(dismissed ? P.text3 : Color(hex: settings.accentColorHex))
+                        }
+                        .buttonStyle(.plain)
+
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(holiday.title)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(dismissed ? P.text3 : P.text1)
+                                .strikethrough(dismissed, color: P.text3)
+                            Text(dateFmt.string(from: holiday.startDate))
+                                .font(.system(size: 10))
+                                .foregroundStyle(P.text3)
+                        }
+
+                        Spacer()
+
+                        if dismissed {
+                            Text("skipped")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(P.text3)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 7)
+                    .overlay(alignment: .bottom) {
+                        P.divider.frame(height: 0.5).padding(.horizontal, 16)
+                    }
+                }
+            }
+        )
     }
 
     // MARK: - Stats Tab (settings-native)

@@ -44,6 +44,15 @@ final class UserSettings: ObservableObject {
         self.showSunArc = defaults.object(forKey: "showSunArc") as? Bool ?? true
         self.showCalendarHeatmap = defaults.object(forKey: "showCalendarHeatmap") as? Bool ?? true
         self.wrapUpMinutes = defaults.object(forKey: "wrapUpMinutes") as? Int ?? 2
+        self.showLongWeekends = defaults.bool(forKey: "showLongWeekends")
+        if let data = defaults.data(forKey: "dismissedHolidayDates"),
+           let dates = try? JSONDecoder().decode(Set<String>.self, from: data) {
+            self._dismissedHolidayDates = dates
+        }
+        if let data = defaults.data(forKey: "holidayCalendarIds"),
+           let ids = try? JSONDecoder().decode(Set<String>.self, from: data) {
+            self._holidayCalendarIds = ids
+        }
         if let data = defaults.data(forKey: "worldClockIds"),
            let ids = try? JSONDecoder().decode([String].self, from: data) {
             self.worldClockIds = ids
@@ -106,6 +115,58 @@ final class UserSettings: ObservableObject {
     /// Minutes before meeting end to show wrap-up alert. 0 = disabled.
     @Published var wrapUpMinutes: Int = 2 {
         didSet { defaults.set(wrapUpMinutes, forKey: "wrapUpMinutes") }
+    }
+
+    @Published var showLongWeekends: Bool = false {
+        didSet { defaults.set(showLongWeekends, forKey: "showLongWeekends") }
+    }
+
+    @Published private var _dismissedHolidayDates: Set<String> = [] {
+        didSet {
+            let data = try? JSONEncoder().encode(_dismissedHolidayDates)
+            defaults.set(data, forKey: "dismissedHolidayDates")
+        }
+    }
+
+    var dismissedHolidayDates: Set<String> {
+        get { _dismissedHolidayDates }
+        set { _dismissedHolidayDates = newValue }
+    }
+
+    func isHolidayDismissed(_ dateString: String) -> Bool {
+        _dismissedHolidayDates.contains(dateString)
+    }
+
+    func toggleHolidayDismissed(_ dateString: String) {
+        if _dismissedHolidayDates.contains(dateString) {
+            _dismissedHolidayDates.remove(dateString)
+        } else {
+            _dismissedHolidayDates.insert(dateString)
+        }
+    }
+
+    @Published private var _holidayCalendarIds: Set<String> = [] {
+        didSet {
+            let data = try? JSONEncoder().encode(_holidayCalendarIds)
+            defaults.set(data, forKey: "holidayCalendarIds")
+        }
+    }
+
+    var holidayCalendarIds: Set<String> {
+        get { _holidayCalendarIds }
+        set { _holidayCalendarIds = newValue }
+    }
+
+    func isHolidayCalendar(_ calendarId: String) -> Bool {
+        _holidayCalendarIds.contains(calendarId)
+    }
+
+    func toggleHolidayCalendar(_ calendarId: String) {
+        if _holidayCalendarIds.contains(calendarId) {
+            _holidayCalendarIds.remove(calendarId)
+        } else {
+            _holidayCalendarIds.insert(calendarId)
+        }
     }
 
     @Published var worldClockIds: [String] = [] {
