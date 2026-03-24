@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OnAir — Your meetings, always visible</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0908;
+            --surface: #12100b;
+            --border: rgba(255,255,255,0.06);
+            --text: #e8e4dc;
+            --text2: rgba(255,255,255,0.5);
+            --text3: rgba(255,255,255,0.25);
+            --accent: #e6402e;
+            --accent-glow: rgba(230, 64, 46, 0.15);
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        /* Hero */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+            padding: 2rem;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .icon-wrap {
+            width: 100px;
+            height: 100px;
+            border-radius: 24px;
+            background: linear-gradient(135deg, var(--accent), #a01a10);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 20px 60px rgba(230, 64, 46, 0.25);
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .icon-wrap::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 24px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent 50%);
+        }
+
+        .icon-wrap svg {
+            width: 48px;
+            height: 48px;
+            fill: white;
+            opacity: 0.95;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.75rem;
+        }
+
+        h1 span { color: var(--accent); }
+
+        .subtitle {
+            font-size: 1.25rem;
+            color: var(--text2);
+            max-width: 480px;
+            line-height: 1.6;
+            margin-bottom: 2.5rem;
+        }
+
+        .cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--accent);
+            color: white;
+            padding: 0.85rem 2rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 24px rgba(230, 64, 46, 0.3);
+        }
+
+        .cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(230, 64, 46, 0.4);
+        }
+
+        .cta-sub {
+            font-size: 0.85rem;
+            color: var(--text3);
+            margin-top: 0.75rem;
+        }
+
+        /* Features */
+        .features {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 4rem 2rem 6rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .feature {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .feature:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255,255,255,0.12);
+        }
+
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--accent-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature h3 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature p {
+            font-size: 0.9rem;
+            color: var(--text2);
+            line-height: 1.5;
+        }
+
+        /* Section header */
+        .section-header {
+            text-align: center;
+            padding: 4rem 2rem 1rem;
+        }
+
+        .section-header h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .section-header p {
+            color: var(--text2);
+            margin-top: 0.5rem;
+            font-size: 1rem;
+        }
+
+        /* Keyboard shortcuts */
+        .shortcuts {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 2rem 2rem 6rem;
+        }
+
+        .shortcut-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .shortcut-row span { color: var(--text2); font-size: 0.9rem; }
+
+        kbd {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.25rem 0.6rem;
+            font-family: 'DM Sans', monospace;
+            font-size: 0.8rem;
+            color: var(--text);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 3rem 2rem;
+            border-top: 1px solid var(--border);
+            color: var(--text3);
+            font-size: 0.85rem;
+        }
+
+        footer a { color: var(--text2); text-decoration: none; }
+        footer a:hover { color: var(--text); }
+    </style>
+</head>
+<body>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="icon-wrap">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41M12 2v2M12 20v2" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+        </div>
+        <h1>On<span>Air</span></h1>
+        <p class="subtitle">A smart menu bar companion that keeps you ahead of your schedule. Focus timer, meeting intelligence, and calendar awareness — all one click away.</p>
+        <a href="#" class="cta">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Download for macOS
+        </a>
+        <p class="cta-sub">Free &middot; macOS 13+ &middot; 1.5 MB</p>
+    </section>
+
+    <!-- Features -->
+    <div class="section-header">
+        <h2>Not just a calendar. A command center.</h2>
+        <p>Everything you need between meetings, in 300 pixels.</p>
+    </div>
+
+    <section class="features">
+        <div class="feature">
+            <div class="feature-icon">&#9201;</div>
+            <h3>Focus Timer</h3>
+            <p>Calendar-aware pomodoro. Knows your next meeting is in 47 minutes and suggests a 40-minute focus block.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">&#128247;</div>
+            <h3>Auto-Join Meetings</h3>
+            <p>Detects Zoom, Meet, and Teams links. Green "Join" button appears 5 minutes before. One click to join.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">&#9888;</div>
+            <h3>Conflict Detection</h3>
+            <p>Overlapping meetings get flagged with a warning badge. Menu bar shows both when they're about to collide.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">&#128200;</div>
+            <h3>Meeting Fatigue</h3>
+            <p>Color-coded meter shows your meeting load. Green to red. Smart nudges when you need a break.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">&#127912;</div>
+            <h3>Calendar Heatmap</h3>
+            <p>Days colored by meeting density. See your busiest weeks at a glance, like a GitHub contribution graph.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">&#128276;</div>
+            <h3>Wrap-up Alerts</h3>
+            <p>Configurable notice before your current meeting ends. No more getting cut off mid-sentence.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">&#127752;</div>
+            <h3>Time-of-Day Themes</h3>
+            <p>Dawn, morning, afternoon, evening, night. The UI subtly shifts to match the light outside your window.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">&#127912;</div>
+            <h3>Accent Colors</h3>
+            <p>7 presets or custom hex. Your accent color flows through every element — calendar, buttons, toggles, stats.</p>
+        </div>
+        <div class="feature">
+            <div class="feature-icon">&#9000;</div>
+            <h3>Keyboard First</h3>
+            <p>J to join. Cmd+N for events. Cmd+F to search. ESC to dismiss. Built for people who don't touch mice.</p>
+        </div>
+    </section>
+
+    <!-- Shortcuts -->
+    <div class="section-header">
+        <h2>Keyboard shortcuts</h2>
+    </div>
+
+    <section class="shortcuts">
+        <div class="shortcut-row"><span>Join next meeting</span><kbd>J</kbd></div>
+        <div class="shortcut-row"><span>New event</span><kbd>&#8984; N</kbd></div>
+        <div class="shortcut-row"><span>Search events</span><kbd>&#8984; F</kbd></div>
+        <div class="shortcut-row"><span>Open settings</span><kbd>&#8984; ,</kbd></div>
+        <div class="shortcut-row"><span>Dismiss</span><kbd>ESC</kbd></div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>Built by <a href="#">Vivek</a> &middot; OnAir v1.0.0</p>
+    </footer>
+
+</body>
+</html>
