@@ -37,6 +37,7 @@
 		AA11BB22CC33DD44EE55FF66 /* FocusSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB22CC33DD44EE55FF660011 /* FocusSession.swift */; };
 		CC33DD44EE55FF6600112233 /* FocusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD44EE55FF660011223344AA /* FocusService.swift */; };
 		EE55FF660011223344AABB22 /* FocusTimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF660011223344AABB22CC33 /* FocusTimerView.swift */; };
+		AABB001122334455EEFF6677 /* BirthdayCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBCC001122334455EEFF6677 /* BirthdayCardView.swift */; };
 		FD86603D23E203F0FAB733B2 /* UserSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 181ECE2F182B090F550BCDBE /* UserSettingsTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -86,6 +87,7 @@
 		BB22CC33DD44EE55FF660011 /* FocusSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusSession.swift; sourceTree = "<group>"; };
 		DD44EE55FF660011223344AA /* FocusService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusService.swift; sourceTree = "<group>"; };
 		FF660011223344AABB22CC33 /* FocusTimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusTimerView.swift; sourceTree = "<group>"; };
+		BBCC001122334455EEFF6677 /* BirthdayCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BirthdayCardView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -114,6 +116,7 @@
 			isa = PBXGroup;
 			children = (
 				FEBEF20A59B70FAF0D8C01BC /* AgendaView.swift */,
+				BBCC001122334455EEFF6677 /* BirthdayCardView.swift */,
 				70D87AF08954646FC71487E5 /* CalendarGridView.swift */,
 				5530F766BD87E51CA2770255 /* EventDetailView.swift */,
 				FF660011223344AABB22CC33 /* FocusTimerView.swift */,
@@ -282,6 +285,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F586EEC0365FE5C25706B5F2 /* AgendaView.swift in Sources */,
+				AABB001122334455EEFF6677 /* BirthdayCardView.swift in Sources */,
 				16A2FBE86C19795D7F13E49B /* AppState.swift in Sources */,
 				9A9BF9F728EFD358D104AE8A /* CalendarEvent.swift in Sources */,
 				4C7CC9D98BB8AD550BC2FCF8 /* CalendarGridView.swift in Sources */,

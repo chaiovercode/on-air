@@ -8,6 +8,7 @@ struct PopoverView: View {
     @State private var selectedDate: Date? = nil
     @State private var calendarCollapsed = false
     @State private var scrollToFocus = false
+    @State private var greetingIndex = 0
 
     private var accentRed: Color { Color(hex: appState.settings.accentColorHex) }
 
@@ -202,28 +203,25 @@ struct PopoverView: View {
                     .font(.system(size: 13, weight: .semibold))
             }
 
-            if hasUpcomingEvents {
-                HStack(spacing: 0) {
-                    Text("You have ")
+            // Carousel: events count + birthdays (fixed height to prevent layout shift)
+            let lines = greetingLines
+            if !lines.isEmpty {
+                ZStack(alignment: .leading) {
+                    // Invisible spacer to hold max height
+                    Text("Placeholder")
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                    Image(systemName: "calendar")
-                        .font(.system(size: 10))
-                        .foregroundStyle(accentRed)
-                    Text(" \(appState.todayEvents.count)")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(accentRed)
-                    Text(" event\(appState.todayEvents.count == 1 ? "" : "s") today.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                }
+                        .opacity(0)
 
-                // Fatigue meter
-                fatigueMeter
-            } else {
-                Text(allClearMessage)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                    lines[greetingIndex % lines.count]
+                        .id(greetingIndex)
+                }
+                .clipped()
+                .onAppear { startCarousel(count: lines.count) }
+                .animation(.easeInOut(duration: 0.3), value: greetingIndex)
+
+                if hasUpcomingEvents {
+                    fatigueMeter
+                }
             }
 
             // Smart nudge
@@ -249,6 +247,119 @@ struct PopoverView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(themeBorder, lineWidth: 0.5)
         )
+    }
+
+    // MARK: - Greeting Carousel
+
+    @ViewBuilder
+    private var greetingLines: [AnyView] {
+        var lines: [AnyView] = []
+
+        // Line 0: event count or all clear
+        if hasUpcomingEvents {
+            lines.append(AnyView(
+                HStack(spacing: 0) {
+                    Text("You have ")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                    Image(systemName: "calendar")
+                        .font(.system(size: 10))
+                        .foregroundStyle(accentRed)
+                    Text(" \(appState.todayEvents.count)")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(accentRed)
+                    Text(" event\(appState.todayEvents.count == 1 ? "" : "s") today.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+            ))
+        } else {
+            lines.append(AnyView(
+                Text(allClearMessage)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            ))
+        }
+
+        // Birthday lines
+        for bday in upcomingBirthdays {
+            lines.append(AnyView(
+                HStack(spacing: 0) {
+                    Text(bday.name)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.8))
+                    Text("'s birthday")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                    if !bday.isToday {
+                        Text(" \(bday.dayLabel.lowercased()).")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(" is today!")
+                            .font(.system(size: 12))
+                            .foregroundStyle(accentRed)
+                    }
+                }
+            ))
+        }
+
+        return lines
+    }
+
+    private struct UpcomingBirthday {
+        let name: String
+        let dayLabel: String
+        let isToday: Bool
+    }
+
+    private var upcomingBirthdays: [UpcomingBirthday] {
+        let cal = Calendar.current
+        let now = Date()
+        let startOfToday = cal.startOfDay(for: now)
+        guard let endDate = cal.date(byAdding: .day, value: 7, to: startOfToday) else { return [] }
+
+        let allDayEvents = appState.calendarService.fetchAllDayEvents(
+            from: startOfToday,
+            to: endDate,
+            disabledCalendarIds: appState.settings.disabledCalendarIds
+        )
+
+        return allDayEvents
+            .filter { $0.calendarTitle.lowercased().contains("birthday") || $0.title.lowercased().contains("birthday") }
+            .prefix(3)
+            .map { event in
+                let name = cleanBirthdayName(event.title)
+                let isToday = cal.isDateInToday(event.startDate)
+                let label: String
+                if isToday { label = "today" }
+                else if cal.isDateInTomorrow(event.startDate) { label = "tomorrow" }
+                else {
+                    let f = DateFormatter(); f.dateFormat = "EEEE"
+                    label = "on \(f.string(from: event.startDate))"
+                }
+                return UpcomingBirthday(name: name, dayLabel: label, isToday: isToday)
+            }
+    }
+
+    private func cleanBirthdayName(_ title: String) -> String {
+        var name = title
+        let patterns = [#"'s \d+\w* Birthday"#, #"'s \d+\w*"#, #"'s Birthday"#, #"'s birthday"#, #" \d+\w* Birthday"#, #" Birthday"#, #" birthday"#]
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
+                name = regex.stringByReplacingMatches(in: name, range: NSRange(name.startIndex..., in: name), withTemplate: "")
+            }
+        }
+        return name.trimmingCharacters(in: .whitespaces)
+    }
+
+    private func startCarousel(count: Int) {
+        guard count > 1 else { return }
+        Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { _ in
+            Task { @MainActor in
+                greetingIndex += 1
+            }
+        }
     }
 
     // MARK: - Fatigue Meter
