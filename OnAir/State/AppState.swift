@@ -92,7 +92,7 @@ final class AppState: ObservableObject {
         let remaining = Int(next.startDate.timeIntervalSinceNow)
         secondsUntilNext = max(remaining, 0)
 
-        if remaining <= 300 && remaining > 0 {
+        if remaining <= 300 {
             startTickTimer()
         }
 
@@ -100,9 +100,9 @@ final class AppState: ObservableObject {
             scheduleCountdown(for: next)
         }
 
-        // Record attendance
+        // Record attendance only after meeting has ended
         if remaining <= 0 {
-            if let next = nextEvent, next.id != lastRecordedEventId && settings.trackStats {
+            if let next = nextEvent, next.endDate <= Date(), next.id != lastRecordedEventId && settings.trackStats {
                 statsService.recordAttendance(next)
                 lastRecordedEventId = next.id
             }
@@ -139,7 +139,8 @@ final class AppState: ObservableObject {
                     self.wrapUpAlert = false
                 }
 
-                if remaining <= 0 {
+                // Meeting ended — stop timer and move to next event
+                if remaining <= 0 && next.endDate <= Date() {
                     self.stopCountdown()
                     self.refreshEvents()
                 }
@@ -216,12 +217,12 @@ final class AppState: ObservableObject {
                 guard wrapUpAlert else { return nil }
                 let secsLeft = Int(next.endDate.timeIntervalSinceNow)
                 guard secsLeft > 0 else { return nil }
-                return "ends \(secsLeft / 60)m"
+                let mins = (secsLeft + 59) / 60 // round up
+                return "ends \(mins)m"
             }()
 
             var text = "● \(truncatedTitle)"
             if let wp = wrapPart { text += " (\(wp))" }
-            else { text += " (now)" }
             if let cp = conflictPart { text += " · \(cp)" }
             else if let fp = focusPart { text += " · \(fp)" }
             return text
