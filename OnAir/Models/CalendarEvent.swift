@@ -49,7 +49,12 @@ struct CalendarEvent: Identifiable, Equatable, Comparable {
         guard !isAllDay else { return false }
         guard status != .cancelled else { return false }
         guard participationStatus != .declined else { return false }
+        guard title != "Focus Block" else { return false }
         return true
+    }
+
+    var isFocusBlock: Bool {
+        title == "Focus Block"
     }
 
     var hasLink: Bool {

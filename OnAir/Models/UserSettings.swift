@@ -44,6 +44,17 @@ final class UserSettings: ObservableObject {
         self.showSunArc = defaults.object(forKey: "showSunArc") as? Bool ?? true
         self.showCalendarHeatmap = defaults.object(forKey: "showCalendarHeatmap") as? Bool ?? true
         self.wrapUpMinutes = defaults.object(forKey: "wrapUpMinutes") as? Int ?? 2
+        self.focusCalendarId = defaults.string(forKey: "focusCalendarId")
+        self.showCommute = defaults.bool(forKey: "showCommute")
+        self.morningCommuteHour = defaults.object(forKey: "morningCommuteHour") as? Int ?? 8
+        self.morningCommuteMinute = defaults.object(forKey: "morningCommuteMinute") as? Int ?? 30
+        self.eveningCommuteHour = defaults.object(forKey: "eveningCommuteHour") as? Int ?? 18
+        self.eveningCommuteMinute = defaults.object(forKey: "eveningCommuteMinute") as? Int ?? 0
+        self.commuteDurationMinutes = defaults.object(forKey: "commuteDurationMinutes") as? Int ?? 30
+        if let data = defaults.data(forKey: "commuteDays"),
+           let days = try? JSONDecoder().decode(Set<Int>.self, from: data) {
+            self._commuteDays = days
+        }
         self.showLongWeekends = defaults.bool(forKey: "showLongWeekends")
         if let data = defaults.data(forKey: "dismissedHolidayDates"),
            let dates = try? JSONDecoder().decode(Set<String>.self, from: data) {
@@ -116,6 +127,85 @@ final class UserSettings: ObservableObject {
     @Published var wrapUpMinutes: Int = 2 {
         didSet { defaults.set(wrapUpMinutes, forKey: "wrapUpMinutes") }
     }
+
+    // MARK: - Focus Blocks
+
+    @Published var focusCalendarId: String? = nil {
+        didSet { defaults.set(focusCalendarId, forKey: "focusCalendarId") }
+    }
+
+    // MARK: - Commute
+
+    @Published var showCommute: Bool = false {
+        didSet { defaults.set(showCommute, forKey: "showCommute") }
+    }
+
+    @Published var morningCommuteHour: Int = 8 {
+        didSet { defaults.set(morningCommuteHour, forKey: "morningCommuteHour") }
+    }
+
+    @Published var morningCommuteMinute: Int = 30 {
+        didSet { defaults.set(morningCommuteMinute, forKey: "morningCommuteMinute") }
+    }
+
+    @Published var eveningCommuteHour: Int = 18 {
+        didSet { defaults.set(eveningCommuteHour, forKey: "eveningCommuteHour") }
+    }
+
+    @Published var eveningCommuteMinute: Int = 0 {
+        didSet { defaults.set(eveningCommuteMinute, forKey: "eveningCommuteMinute") }
+    }
+
+    @Published var commuteDurationMinutes: Int = 30 {
+        didSet { defaults.set(commuteDurationMinutes, forKey: "commuteDurationMinutes") }
+    }
+
+    /// Days of week for commute. 1=Sun, 2=Mon, ..., 7=Sat
+    @Published private var _commuteDays: Set<Int> = [2, 3, 4, 5, 6] {
+        didSet {
+            let data = try? JSONEncoder().encode(_commuteDays)
+            defaults.set(data, forKey: "commuteDays")
+        }
+    }
+
+    var commuteDays: Set<Int> {
+        get { _commuteDays }
+        set { _commuteDays = newValue }
+    }
+
+    func isCommuteDay(_ weekday: Int) -> Bool {
+        _commuteDays.contains(weekday)
+    }
+
+    func toggleCommuteDay(_ weekday: Int) {
+        if _commuteDays.contains(weekday) {
+            _commuteDays.remove(weekday)
+        } else {
+            _commuteDays.insert(weekday)
+        }
+    }
+
+    /// Returns morning commute start/end for today, or nil if not a commute day
+    func morningCommuteToday() -> (start: Date, end: Date)? {
+        let cal = Calendar.current
+        let weekday = cal.component(.weekday, from: Date())
+        guard showCommute, isCommuteDay(weekday) else { return nil }
+        guard let start = cal.date(bySettingHour: morningCommuteHour, minute: morningCommuteMinute, second: 0, of: Date()),
+              let end = cal.date(byAdding: .minute, value: commuteDurationMinutes, to: start) else { return nil }
+        return (start, end)
+    }
+
+    /// Returns evening commute start/end for today, or nil if not a commute day
+    func eveningCommuteToday() -> (start: Date, end: Date)? {
+        let cal = Calendar.current
+        let weekday = cal.component(.weekday, from: Date())
+        guard showCommute, isCommuteDay(weekday) else { return nil }
+        guard let start = cal.date(bySettingHour: eveningCommuteHour, minute: eveningCommuteMinute, second: 0, of: Date()),
+              let end = cal.date(byAdding: .minute, value: commuteDurationMinutes, to: start) else { return nil }
+        return (start, end)
+    }
+
+    // MARK: - Long Weekends
 
     @Published var showLongWeekends: Bool = false {
         didSet { defaults.set(showLongWeekends, forKey: "showLongWeekends") }

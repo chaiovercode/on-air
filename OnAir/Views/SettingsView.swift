@@ -17,6 +17,30 @@ private enum P {
     static let text3 = Color.white.opacity(0.25)
 }
 
+// MARK: - Always-on Toggle Style
+
+private struct AlwaysOnToggleStyle: ToggleStyle {
+    var color: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack {
+            configuration.label
+            Spacer()
+            RoundedRectangle(cornerRadius: 12)
+                .fill(configuration.isOn ? color : Color.white.opacity(0.1))
+                .frame(width: 38, height: 22)
+                .overlay(alignment: configuration.isOn ? .trailing : .leading) {
+                    Circle()
+                        .fill(.white)
+                        .frame(width: 18, height: 18)
+                        .padding(2)
+                        .shadow(color: .black.opacity(0.15), radius: 1, y: 1)
+                }
+                .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { configuration.isOn.toggle() } }
+        }
+    }
+}
+
 // MARK: - Settings
 
 struct SettingsView: View {
@@ -163,7 +187,7 @@ struct SettingsView: View {
                         Toggle("", isOn: Binding(
                             get: { settings.launchAtLogin },
                             set: { v in settings.launchAtLogin = v; updateLoginItem(enabled: v) }
-                        )).toggleStyle(.switch).controlSize(.small).tint(Color(hex: settings.accentColorHex))
+                        )).toggleStyle(AlwaysOnToggleStyle(color: Color(hex: settings.accentColorHex)))
                     }
                 }
 
@@ -210,7 +234,7 @@ struct SettingsView: View {
 
                 Section("Data") {
                     iconRow("chart.bar", "Track meeting stats", sub: "Record attendance for analytics") {
-                        Toggle("", isOn: $settings.trackStats).toggleStyle(.switch).controlSize(.small).tint(Color(hex: settings.accentColorHex))
+                        Toggle("", isOn: $settings.trackStats).toggleStyle(AlwaysOnToggleStyle(color: Color(hex: settings.accentColorHex)))
                     }
                     HStack(spacing: 8) {
                         Spacer()
@@ -244,11 +268,130 @@ struct SettingsView: View {
                         Button("Cancel", role: .cancel) {}
                     } message: { Text("This cannot be undone.") }
                 }
+
+                Section("Commute") {
+                    iconRow("car.fill", "Show commute", sub: "Display commute blocks in Today timeline") {
+                        Toggle("", isOn: $settings.showCommute)
+                            .toggleStyle(AlwaysOnToggleStyle(color: Color(hex: settings.accentColorHex)))
+                    }
+
+                    if settings.showCommute {
+                        // Morning commute
+                        iconRow("sunrise.fill", "Morning departure", sub: nil) {
+                            HStack(spacing: 4) {
+                                commuteTimePicker(hour: $settings.morningCommuteHour, minute: $settings.morningCommuteMinute)
+                            }
+                        }
+
+                        // Evening commute
+                        iconRow("sunset.fill", "Evening departure", sub: nil) {
+                            HStack(spacing: 4) {
+                                commuteTimePicker(hour: $settings.eveningCommuteHour, minute: $settings.eveningCommuteMinute)
+                            }
+                        }
+
+                        // Duration
+                        iconRow("clock.arrow.circlepath", "Duration", sub: nil) {
+                            let durations = [(15,"15m"),(30,"30m"),(45,"45m"),(60,"1h"),(75,"1h 15m"),(90,"1h 30m")]
+                            let current = durations.first { $0.0 == settings.commuteDurationMinutes }?.1 ?? "30m"
+                            Menu {
+                                ForEach(durations, id: \.0) { val, label in
+                                    Button(label) { settings.commuteDurationMinutes = val }
+                                }
+                            } label: {
+                                Text(current)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(P.text1)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                            .fill(.white.opacity(0.06))
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                            .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        // Day pills
+                        HStack(spacing: 4) {
+                            let dayLabels = [(2,"M"),(3,"T"),(4,"W"),(5,"T"),(6,"F"),(7,"S"),(1,"S")]
+                            ForEach(dayLabels, id: \.0) { weekday, label in
+                                Button {
+                                    settings.toggleCommuteDay(weekday)
+                                } label: {
+                                    Text(label)
+                                        .font(.system(size: 11, weight: settings.isCommuteDay(weekday) ? .bold : .regular))
+                                        .foregroundStyle(settings.isCommuteDay(weekday) ? .white : P.text3)
+                                        .frame(width: 28, height: 28)
+                                        .background(
+                                            Circle()
+                                                .fill(settings.isCommuteDay(weekday) ? Color(hex: settings.accentColorHex).opacity(0.6) : .white.opacity(0.04))
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                    }
+                }
             }
             .frame(maxWidth: 480)
             .padding(.horizontal, 24).padding(.vertical, 8)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func commuteTimePicker(hour: Binding<Int>, minute: Binding<Int>) -> some View {
+        HStack(spacing: 3) {
+            Menu {
+                ForEach(5..<23, id: \.self) { h in
+                    Button(String(format: "%02d", h)) { hour.wrappedValue = h }
+                }
+            } label: {
+                Text(String(format: "%02d", hour.wrappedValue))
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(P.text1)
+                    .frame(width: 32, height: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(.white.opacity(0.06))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+                    )
+            }
+            .buttonStyle(.plain)
+
+            Text(":")
+                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                .foregroundStyle(P.text3)
+
+            Menu {
+                ForEach([0, 15, 30, 45], id: \.self) { m in
+                    Button(String(format: "%02d", m)) { minute.wrappedValue = m }
+                }
+            } label: {
+                Text(String(format: "%02d", minute.wrappedValue))
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(P.text1)
+                    .frame(width: 32, height: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(.white.opacity(0.06))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+                    )
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     private func iconRow<C: View>(_ icon: String, _ label: String, sub: String?, @ViewBuilder content: () -> C) -> some View {
@@ -409,16 +552,16 @@ struct SettingsView: View {
                         )
                     }
                     iconRow("chart.line.uptrend.xyaxis", "Year progress bar", sub: "Show how far through the year we are") {
-                        Toggle("", isOn: $settings.showYearProgress).toggleStyle(.switch).controlSize(.small).tint(Color(hex: settings.accentColorHex))
+                        Toggle("", isOn: $settings.showYearProgress).toggleStyle(AlwaysOnToggleStyle(color: Color(hex: settings.accentColorHex)))
                     }
                     iconRow("square.grid.3x3.fill", "Calendar heatmap", sub: "Color days by meeting density") {
-                        Toggle("", isOn: $settings.showCalendarHeatmap).toggleStyle(.switch).controlSize(.small).tint(Color(hex: settings.accentColorHex))
+                        Toggle("", isOn: $settings.showCalendarHeatmap).toggleStyle(AlwaysOnToggleStyle(color: Color(hex: settings.accentColorHex)))
                     }
                     iconRow("eye", "Show past meetings", sub: "Show today's ended events in the agenda") {
-                        Toggle("", isOn: $settings.showPastMeetings).toggleStyle(.switch).controlSize(.small).tint(Color(hex: settings.accentColorHex))
+                        Toggle("", isOn: $settings.showPastMeetings).toggleStyle(AlwaysOnToggleStyle(color: Color(hex: settings.accentColorHex)))
                     }
                     iconRow("calendar.day.timeline.left", "Hide empty days", sub: "Hides days with no events from the agenda") {
-                        Toggle("", isOn: $settings.hideEmptyDays).toggleStyle(.switch).controlSize(.small).tint(Color(hex: settings.accentColorHex))
+                        Toggle("", isOn: $settings.hideEmptyDays).toggleStyle(AlwaysOnToggleStyle(color: Color(hex: settings.accentColorHex)))
                     }
                 }
 
@@ -531,6 +674,50 @@ struct SettingsView: View {
                         .padding(.top, 4)
                     }
                     .padding(16)
+                }
+
+                Section("Focus Blocks") {
+                    HStack(spacing: 12) {
+                        Image(systemName: "calendar.badge.plus")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Color(hex: settings.accentColorHex).opacity(0.7))
+                            .frame(width: 20, alignment: .center)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Calendar for focus blocks")
+                                .font(.system(size: 13))
+                                .foregroundStyle(P.text1)
+                            Text("Where booked focus blocks are created")
+                                .font(.system(size: 10))
+                                .foregroundStyle(P.text3)
+                        }
+                        Spacer()
+                        let cals = appState.calendarService.availableCalendars
+                        let current = cals.first { $0.id == settings.focusCalendarId }?.title ?? "Default"
+                        Menu {
+                            Button("Default") { settings.focusCalendarId = nil }
+                            Divider()
+                            ForEach(cals, id: \.id) { cal in
+                                Button(cal.title) { settings.focusCalendarId = cal.id }
+                            }
+                        } label: {
+                            Text(current)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(P.text1)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .fill(.white.opacity(0.06))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
                 }
 
                 Section("Long Weekends") {
@@ -648,7 +835,7 @@ struct SettingsView: View {
                                 Toggle("", isOn: Binding(
                                     get: { settings.isCalendarEnabled(cal.id) },
                                     set: { _ in settings.toggleCalendar(cal.id); appState.refreshEvents() }
-                                )).toggleStyle(.switch).controlSize(.small).tint(Color(hex: settings.accentColorHex))
+                                )).toggleStyle(AlwaysOnToggleStyle(color: Color(hex: settings.accentColorHex)))
                             }
                             .padding(.horizontal, 16)
                             .padding(.vertical, 9)

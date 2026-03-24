@@ -112,6 +112,31 @@ final class CalendarService: ObservableObject {
             .filter { !disabledCalendarIds.contains($0.calendarId) }
     }
 
+    /// Creates a "Focus Block" event in the specified calendar, marked as busy
+    func createFocusBlock(from start: Date, to end: Date, calendarId: String?) -> Bool {
+        let event = EKEvent(eventStore: store)
+        event.title = "Focus Block"
+        event.startDate = start
+        event.endDate = end
+        event.availability = .busy
+
+        if let calId = calendarId,
+           let cal = store.calendar(withIdentifier: calId) {
+            event.calendar = cal
+        } else {
+            event.calendar = store.defaultCalendarForNewEvents
+        }
+
+        guard event.calendar != nil else { return false }
+
+        do {
+            try store.save(event, span: .thisEvent)
+            return true
+        } catch {
+            return false
+        }
+    }
+
     /// Returns start-of-day dates that have all-day events from the specified holiday calendars
     func fetchHolidays(from startDate: Date, to endDate: Date, holidayCalendarIds: Set<String>) -> Set<Date> {
         guard !holidayCalendarIds.isEmpty else { return [] }
