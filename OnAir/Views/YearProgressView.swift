@@ -2,7 +2,7 @@ import SwiftUI
 
 struct YearProgressView: View {
 
-    private let accentRed = Color(red: 0.9, green: 0.25, blue: 0.2)
+    var accentColor: Color = Color(red: 0.9, green: 0.25, blue: 0.2)
 
     private var progress: Double {
         let calendar = Calendar.current
@@ -38,7 +38,7 @@ struct YearProgressView: View {
 
                     // Filled portion
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(accentRed)
+                        .fill(accentColor)
                         .frame(width: geo.size.width * progress)
                 }
             }

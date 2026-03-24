@@ -7,23 +7,20 @@ struct PopoverView: View {
     @State private var displayedMonth = Date()
     @State private var selectedDate: Date? = nil
     @State private var calendarCollapsed = false
+    @State private var scrollToFocus = false
 
-    private let accentRed = Color(red: 0.9, green: 0.25, blue: 0.2)
+    private var accentRed: Color { Color(hex: appState.settings.accentColorHex) }
 
     private var themeBorder: Color {
         let hour = Calendar.current.component(.hour, from: Date())
         if hour >= 18 || hour < 6 {
-            return Color(red: 0.30, green: 0.32, blue: 0.45).opacity(0.35)
+            return Color(red: 0.25, green: 0.27, blue: 0.42).opacity(0.4)
         }
-        return Color(red: 0.45, green: 0.32, blue: 0.20).opacity(0.35)
+        return Color(red: 0.40, green: 0.28, blue: 0.16).opacity(0.4)
     }
 
     private var themeFill: Color {
-        let hour = Calendar.current.component(.hour, from: Date())
-        if hour >= 18 || hour < 6 {
-            return .white.opacity(0.05)
-        }
-        return .white.opacity(0.03)
+        .white.opacity(0.04)
     }
 
     var body: some View {
@@ -50,30 +47,47 @@ struct PopoverView: View {
             if appState.calendarAccessDenied {
                 calendarAccessView
             } else {
-                ScrollView(.vertical, showsIndicators: true) {
-                    VStack(spacing: 0) {
-                        // Year progress bar
-                        YearProgressView()
-                            .padding(.horizontal, 14)
-                            .padding(.bottom, 10)
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical, showsIndicators: true) {
+                        VStack(spacing: 0) {
+                            // Year progress bar
+                            if appState.settings.showYearProgress {
+                                YearProgressView(accentColor: accentRed)
+                                    .padding(.horizontal, 14)
+                                    .padding(.bottom, 6)
+                            }
 
-                        // Calendar grid (collapsible)
-                        if !calendarCollapsed {
-                            CalendarGridView(
-                                appState: appState,
-                                displayedMonth: $displayedMonth,
-                                selectedDate: $selectedDate
-                            )
+
+                            // Calendar grid (collapsible)
+                            if !calendarCollapsed {
+                                CalendarGridView(
+                                    appState: appState,
+                                    displayedMonth: $displayedMonth,
+                                    selectedDate: $selectedDate
+                                )
+                                .padding(.horizontal, 14)
+                                .padding(.bottom, 8)
+                            }
+
+                            // Agenda
+                            AgendaView(appState: appState, selectedDate: selectedDate) {
+                                NotificationCenter.default.post(name: .toggleNewEvent, object: nil)
+                            }
                             .padding(.horizontal, 14)
                             .padding(.bottom, 8)
-                        }
 
-                        // Agenda
-                        AgendaView(appState: appState, selectedDate: selectedDate) {
-                            NotificationCenter.default.post(name: .toggleNewEvent, object: nil)
+                            // Focus Timer
+                            FocusTimerView(appState: appState)
+                                .id("focusTimer")
+                                .padding(.horizontal, 14)
+                                .padding(.bottom, 12)
                         }
-                        .padding(.horizontal, 14)
-                        .padding(.bottom, 12)
+                    }
+                    .onChange(of: scrollToFocus) { val in
+                        if val {
+                            withAnimation { proxy.scrollTo("focusTimer", anchor: .bottom) }
+                            scrollToFocus = false
+                        }
                     }
                 }
 
@@ -84,10 +98,10 @@ struct PopoverView: View {
         .frame(width: 300, height: 700)
         .background(
             ZStack {
-                Color(red: 0.12, green: 0.11, blue: 0.10)
+                Color(red: 0.071, green: 0.063, blue: 0.043)
                 VStack {
                     LinearGradient(stops: topGradientStops, startPoint: .top, endPoint: .bottom)
-                        .frame(height: 160)
+                        .frame(height: 220)
                     Spacer()
                 }
             }
@@ -102,8 +116,10 @@ struct PopoverView: View {
             HStack(spacing: 6) {
                 Text(timeOfDayEmoji)
                     .font(.system(size: 12))
-                Text(Date().formatted(.dateTime.weekday(.abbreviated).day(.defaultDigits).month(.abbreviated)))
-                    .font(.system(size: 13, weight: .medium))
+                Text(Date(), format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
+                    .font(.system(size: 12, weight: .medium))
+                    .lineLimit(1)
+                    .fixedSize()
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
@@ -122,6 +138,21 @@ struct PopoverView: View {
                 headerButton(icon: "magnifyingglass", help: "Search ⌘F") {
                     NotificationCenter.default.post(name: .toggleSearch, object: nil)
                 }
+                // Focus button — scrolls to focus timer
+                Button {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        scrollToFocus = true
+                    }
+                } label: {
+                    Image(systemName: appState.focusService.isRunning ? "brain.head.profile.fill" : "brain.head.profile")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(appState.focusService.isRunning ? accentRed : .secondary)
+                        .frame(width: 26, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Focus Timer")
+
                 headerButton(icon: calendarCollapsed ? "chevron.down" : "chevron.up", help: "Toggle Calendar") {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         calendarCollapsed.toggle()
@@ -186,10 +217,26 @@ struct PopoverView: View {
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
+
+                // Fatigue meter
+                fatigueMeter
             } else {
                 Text(allClearMessage)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
+            }
+
+            // Smart nudge
+            if let nudge = smartNudge {
+                HStack(spacing: 5) {
+                    Image(systemName: nudge.icon)
+                        .font(.system(size: 9))
+                        .foregroundStyle(nudge.color.opacity(0.7))
+                    Text(nudge.text)
+                        .font(.system(size: 10))
+                        .foregroundStyle(nudge.color.opacity(0.6))
+                }
+                .padding(.top, 2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -202,6 +249,112 @@ struct PopoverView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(themeBorder, lineWidth: 0.5)
         )
+    }
+
+    // MARK: - Fatigue Meter
+
+    private var totalMeetingMinutes: Int {
+        appState.todayEvents.reduce(0) { $0 + $1.durationMinutes }
+    }
+
+    private var fatigueLevel: (color: Color, label: String) {
+        let hours = Double(totalMeetingMinutes) / 60.0
+        if hours >= 6 { return (.red, "Heavy day") }
+        if hours >= 4 { return (.orange, "Busy") }
+        if hours >= 2 { return (.yellow, "Moderate") }
+        return (.green, "Light")
+    }
+
+    private var fatigueMeter: some View {
+        let total = totalMeetingMinutes
+        let maxMins = 8 * 60 // 8 hour workday
+        let progress = min(Double(total) / Double(maxMins), 1.0)
+        let level = fatigueLevel
+        let hours = total / 60
+        let mins = total % 60
+
+        return HStack(spacing: 6) {
+            // Bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(.white.opacity(0.06))
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(level.color.opacity(0.5))
+                        .frame(width: geo.size.width * progress)
+                }
+            }
+            .frame(height: 4)
+
+            // Label
+            Text(hours > 0 ? "\(hours)h\(mins > 0 ? " \(mins)m" : "") in meetings" : "\(mins)m in meetings")
+                .font(.system(size: 9))
+                .foregroundStyle(level.color.opacity(0.6))
+                .fixedSize()
+        }
+        .padding(.top, 4)
+    }
+
+    // MARK: - Smart Nudges
+
+    private struct Nudge {
+        let icon: String
+        let text: String
+        let color: Color
+    }
+
+    private var smartNudge: Nudge? {
+        let events = appState.todayEvents.filter { $0.endDate > Date() }
+
+        // Back-to-back detection
+        let backToBack = countBackToBack(events)
+        if backToBack >= 3 {
+            return Nudge(
+                icon: "exclamationmark.triangle",
+                text: "\(backToBack) back-to-back meetings — block time for a break",
+                color: .orange
+            )
+        }
+
+        // Heavy day warning
+        let hours = Double(totalMeetingMinutes) / 60.0
+        if hours >= 6 {
+            return Nudge(
+                icon: "battery.25percent",
+                text: "Over 6h of meetings today — pace yourself",
+                color: .red
+            )
+        }
+
+        // Upcoming prep suggestion
+        if let next = appState.nextEvent {
+            let minsUntil = Int(next.startDate.timeIntervalSinceNow / 60)
+            if minsUntil > 5 && minsUntil <= 15 {
+                return Nudge(
+                    icon: "lightbulb",
+                    text: "\(minsUntil)m until \(String(next.title.prefix(15))) — time to prep",
+                    color: accentRed
+                )
+            }
+        }
+
+        return nil
+    }
+
+    private func countBackToBack(_ events: [CalendarEvent]) -> Int {
+        guard events.count > 1 else { return 0 }
+        var streak = 1
+        var maxStreak = 1
+        for i in 1..<events.count {
+            let gap = events[i].startDate.timeIntervalSince(events[i-1].endDate)
+            if gap < 5 * 60 { // less than 5 min gap = back-to-back
+                streak += 1
+                maxStreak = max(maxStreak, streak)
+            } else {
+                streak = 1
+            }
+        }
+        return maxStreak
     }
 
     private var greeting: String {
@@ -217,25 +370,44 @@ struct PopoverView: View {
 
     private var topGradientStops: [Gradient.Stop] {
         let hour = Calendar.current.component(.hour, from: Date())
-        if hour >= 18 || hour < 6 {
-            // Night — cool blue/indigo tint
+        if hour >= 20 || hour < 5 {
+            // Night — deep indigo/navy
             return [
-                .init(color: Color(red: 0.14, green: 0.14, blue: 0.24).opacity(0.7), location: 0),
-                .init(color: Color(red: 0.12, green: 0.12, blue: 0.18).opacity(0.3), location: 0.4),
+                .init(color: Color(red: 0.08, green: 0.08, blue: 0.22).opacity(0.9), location: 0),
+                .init(color: Color(red: 0.06, green: 0.06, blue: 0.16).opacity(0.5), location: 0.35),
+                .init(color: Color(red: 0.05, green: 0.05, blue: 0.10).opacity(0.2), location: 0.6),
                 .init(color: .clear, location: 1.0)
             ]
-        } else if hour >= 6 && hour < 12 {
+        } else if hour >= 5 && hour < 8 {
+            // Dawn — soft pink/orange horizon
+            return [
+                .init(color: Color(red: 0.35, green: 0.15, blue: 0.18).opacity(0.8), location: 0),
+                .init(color: Color(red: 0.30, green: 0.18, blue: 0.10).opacity(0.4), location: 0.35),
+                .init(color: Color(red: 0.20, green: 0.12, blue: 0.06).opacity(0.15), location: 0.6),
+                .init(color: .clear, location: 1.0)
+            ]
+        } else if hour >= 8 && hour < 12 {
             // Morning — warm golden
             return [
-                .init(color: Color(red: 0.30, green: 0.22, blue: 0.10).opacity(0.6), location: 0),
-                .init(color: Color(red: 0.22, green: 0.16, blue: 0.08).opacity(0.3), location: 0.4),
+                .init(color: Color(red: 0.32, green: 0.24, blue: 0.08).opacity(0.7), location: 0),
+                .init(color: Color(red: 0.24, green: 0.18, blue: 0.06).opacity(0.35), location: 0.35),
+                .init(color: Color(red: 0.16, green: 0.12, blue: 0.04).opacity(0.12), location: 0.6),
+                .init(color: .clear, location: 1.0)
+            ]
+        } else if hour >= 12 && hour < 17 {
+            // Afternoon — warm amber
+            return [
+                .init(color: Color(red: 0.30, green: 0.20, blue: 0.08).opacity(0.7), location: 0),
+                .init(color: Color(red: 0.22, green: 0.15, blue: 0.06).opacity(0.35), location: 0.35),
+                .init(color: Color(red: 0.14, green: 0.10, blue: 0.04).opacity(0.12), location: 0.6),
                 .init(color: .clear, location: 1.0)
             ]
         } else {
-            // Afternoon — warm amber
+            // Evening — dusky purple/blue
             return [
-                .init(color: Color(red: 0.28, green: 0.18, blue: 0.10).opacity(0.6), location: 0),
-                .init(color: Color(red: 0.20, green: 0.14, blue: 0.08).opacity(0.3), location: 0.4),
+                .init(color: Color(red: 0.14, green: 0.10, blue: 0.24).opacity(0.85), location: 0),
+                .init(color: Color(red: 0.10, green: 0.08, blue: 0.18).opacity(0.4), location: 0.35),
+                .init(color: Color(red: 0.07, green: 0.06, blue: 0.12).opacity(0.15), location: 0.6),
                 .init(color: .clear, location: 1.0)
             ]
         }
@@ -293,8 +465,10 @@ struct PopoverView: View {
 
     private var footer: some View {
         Text(worldClockLine)
-            .font(.system(size: 12))
-            .foregroundStyle(Color.white.opacity(0.5))
+            .font(.system(size: 12.5, weight: .medium, design: .monospaced))
+            .foregroundStyle(Color.white.opacity(0.35))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 14)
             .padding(.vertical, 6)
@@ -307,9 +481,9 @@ struct PopoverView: View {
             let icon = (h >= 6 && h < 18) ? "✱" : "☾"
             let city = String((tz.identifier.components(separatedBy: "/").last ?? "")
                 .replacingOccurrences(of: "_", with: " ").uppercased().prefix(3))
-            let fmt = DateFormatter(); fmt.dateFormat = "h:mma"; fmt.timeZone = tz
+            let fmt = DateFormatter(); fmt.dateFormat = appState.settings.use24HourTime ? "HH:mm" : "h:mma"; fmt.timeZone = tz
             let t = String(fmt.string(from: Date()).lowercased().dropLast(1))
-            return "\(icon) \(city)  \(t)"
+            return "\(icon) \(city) \(t)"
         }.joined(separator: "  ·  ")
     }
 

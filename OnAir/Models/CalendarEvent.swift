@@ -56,6 +56,11 @@ struct CalendarEvent: Identifiable, Equatable, Comparable {
         meetingLink != nil
     }
 
+    func overlaps(with other: CalendarEvent) -> Bool {
+        guard id != other.id else { return false }
+        return startDate < other.endDate && endDate > other.startDate
+    }
+
     static func < (lhs: CalendarEvent, rhs: CalendarEvent) -> Bool {
         if lhs.startDate != rhs.startDate {
             return lhs.startDate < rhs.startDate

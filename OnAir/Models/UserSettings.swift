@@ -38,6 +38,12 @@ final class UserSettings: ObservableObject {
         self.launchAtLogin = defaults.bool(forKey: "launchAtLogin")
         self.trackStats = defaults.object(forKey: "trackStats") as? Bool ?? true
         self.customSoundPath = defaults.string(forKey: "customSoundPath")
+        self.accentColorHex = defaults.string(forKey: "accentColorHex") ?? "#E6402E"
+        self.use24HourTime = defaults.bool(forKey: "use24HourTime")
+        self.showYearProgress = defaults.object(forKey: "showYearProgress") as? Bool ?? true
+        self.showSunArc = defaults.object(forKey: "showSunArc") as? Bool ?? true
+        self.showCalendarHeatmap = defaults.object(forKey: "showCalendarHeatmap") as? Bool ?? true
+        self.wrapUpMinutes = defaults.object(forKey: "wrapUpMinutes") as? Int ?? 2
         if let data = defaults.data(forKey: "worldClockIds"),
            let ids = try? JSONDecoder().decode([String].self, from: data) {
             self.worldClockIds = ids
@@ -75,6 +81,31 @@ final class UserSettings: ObservableObject {
 
     @Published var customSoundPath: String? {
         didSet { defaults.set(customSoundPath, forKey: "customSoundPath") }
+    }
+
+    @Published var accentColorHex: String = "#E6402E" {
+        didSet { defaults.set(accentColorHex, forKey: "accentColorHex") }
+    }
+
+    @Published var use24HourTime: Bool = false {
+        didSet { defaults.set(use24HourTime, forKey: "use24HourTime") }
+    }
+
+    @Published var showYearProgress: Bool = true {
+        didSet { defaults.set(showYearProgress, forKey: "showYearProgress") }
+    }
+
+    @Published var showSunArc: Bool = true {
+        didSet { defaults.set(showSunArc, forKey: "showSunArc") }
+    }
+
+    @Published var showCalendarHeatmap: Bool = true {
+        didSet { defaults.set(showCalendarHeatmap, forKey: "showCalendarHeatmap") }
+    }
+
+    /// Minutes before meeting end to show wrap-up alert. 0 = disabled.
+    @Published var wrapUpMinutes: Int = 2 {
+        didSet { defaults.set(wrapUpMinutes, forKey: "wrapUpMinutes") }
     }
 
     @Published var worldClockIds: [String] = [] {

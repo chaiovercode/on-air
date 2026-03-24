@@ -20,6 +20,8 @@ struct MeetingRowView: View {
     let isInProgress: Bool
     let isPast: Bool
     let accentRed: Color
+    var use24HourTime: Bool = false
+    var hasConflict: Bool = false
 
     @State private var showDetail = false
 
@@ -83,6 +85,18 @@ struct MeetingRowView: View {
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundStyle(.secondary)
 
+                        if hasConflict {
+                            Text("⚠ conflict")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.orange)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                        .fill(.orange.opacity(0.12))
+                                )
+                        }
+
                         Spacer()
 
                         // Time badge
@@ -108,19 +122,41 @@ struct MeetingRowView: View {
                         Spacer()
 
                         if let link = event.meetingLink {
-                            Button {
-                                NSWorkspace.shared.open(link.url)
-                            } label: {
-                                Image(systemName: "arrow.up.right")
-                                    .font(.system(size: 9, weight: .bold))
-                                    .foregroundStyle(.white.opacity(0.8))
-                                    .frame(width: 22, height: 22)
+                            if showJoinProminent {
+                                // Prominent join button when meeting is soon or now
+                                Button {
+                                    NSWorkspace.shared.open(link.url)
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "video.fill")
+                                            .font(.system(size: 9))
+                                        Text("Join")
+                                            .font(.system(size: 11, weight: .bold))
+                                    }
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
                                     .background(
-                                        Circle().fill(.white.opacity(0.1))
+                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                            .fill(Color.green)
                                     )
+                                }
+                                .buttonStyle(.plain)
+                                .help("Join \(link.platform.displayName)")
+                            } else {
+                                // Subtle link for future meetings
+                                Button {
+                                    NSWorkspace.shared.open(link.url)
+                                } label: {
+                                    Image(systemName: "arrow.up.right")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundStyle(.white.opacity(0.5))
+                                        .frame(width: 22, height: 22)
+                                        .background(Circle().fill(.white.opacity(0.06)))
+                                }
+                                .buttonStyle(.plain)
+                                .help("Join \(link.platform.displayName)")
                             }
-                            .buttonStyle(.plain)
-                            .help("Join \(link.platform.displayName)")
                         }
                     }
 
@@ -179,9 +215,15 @@ struct MeetingRowView: View {
         }
     }
 
+    /// Show prominent green Join button when meeting starts within 5 min or is in progress
+    private var showJoinProminent: Bool {
+        let secsUntilStart = Int(event.startDate.timeIntervalSinceNow)
+        return isInProgress || (secsUntilStart <= 300 && secsUntilStart >= -3600)
+    }
+
     private var timeRangeText: String {
-        let start = event.startDate.formatted(date: .omitted, time: .shortened)
-        let end = event.endDate.formatted(date: .omitted, time: .shortened)
-        return "\(start) – \(end)"
+        let f = DateFormatter()
+        f.dateFormat = use24HourTime ? "HH:mm" : "h:mm a"
+        return "\(f.string(from: event.startDate)) – \(f.string(from: event.endDate))"
     }
 }

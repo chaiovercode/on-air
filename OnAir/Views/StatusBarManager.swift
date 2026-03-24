@@ -137,6 +137,14 @@ final class StatusBarManager: NSObject {
                 return nil
             }
 
+            // J — join next meeting link
+            if flags.isEmpty, event.charactersIgnoringModifiers == "j" {
+                if let link = self.appState.nextEvent?.meetingLink {
+                    NSWorkspace.shared.open(link.url)
+                    return nil
+                }
+            }
+
             return event
         }
     }
@@ -160,7 +168,7 @@ final class StatusBarManager: NSObject {
         let hosting = NSHostingController(rootView:
             content
                 .frame(width: 330)
-                .background(Color(red: 0.10, green: 0.10, blue: 0.10))
+                .background(Color(red: 0.071, green: 0.063, blue: 0.043))
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -231,12 +239,13 @@ final class StatusBarManager: NSObject {
 
     private func showSettings() {
         if let window = settingsWindow {
+            window.center()
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
 
-        let bgColor = NSColor(red: 0.098, green: 0.098, blue: 0.106, alpha: 1)
+        let bgColor = NSColor(red: 0.071, green: 0.063, blue: 0.043, alpha: 1)
 
         let view = SettingsView(appState: appState, settings: appState.settings)
         let controller = NSHostingController(rootView: view)
@@ -259,7 +268,24 @@ final class StatusBarManager: NSObject {
 
     private func observeState() {
         appState.$nextEvent
-            .combineLatest(appState.$secondsUntilNext, appState.$countdownActive, appState.$calendarAccessDenied)
+            .combineLatest(appState.$secondsUntilNext, appState.$countdownActive, appState.$wrapUpAlert)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.updateTitle()
+            }
+            .store(in: &cancellables)
+
+        // Update menu bar when focus timer changes — only on minute boundaries (or every sec in last 60s)
+        appState.focusService.$secondsRemaining
+            .receive(on: RunLoop.main)
+            .filter { $0 <= 60 || $0 % 60 == 0 }
+            .sink { [weak self] _ in
+                self?.updateTitle()
+            }
+            .store(in: &cancellables)
+
+        // Also update when focus starts/stops
+        appState.focusService.$isRunning
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.updateTitle()

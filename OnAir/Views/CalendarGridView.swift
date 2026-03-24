@@ -9,7 +9,8 @@ struct CalendarGridView: View {
 
     private let calendar = Calendar.current
     private let dayOfWeekHeaders = ["W", "M", "T", "W", "T", "F", "S"]
-    private let accentRed = Color(red: 0.9, green: 0.25, blue: 0.2)
+    private var accentRed: Color { Color(hex: appState.settings.accentColorHex) }
+    @State private var eventCounts: [Date: Int] = [:]
 
     var body: some View {
         VStack(spacing: 10) {
@@ -76,6 +77,8 @@ struct CalendarGridView: View {
                 }
             }
         }
+        .onAppear { loadEventCounts() }
+        .onChange(of: displayedMonth) { _ in loadEventCounts() }
     }
 
     // MARK: - Day Cell
@@ -85,14 +88,23 @@ struct CalendarGridView: View {
         let isToday = calendar.isDateInToday(date)
         let isCurrentMonth = calendar.component(.month, from: date) == calendar.component(.month, from: displayedMonth)
         let isPast = date < calendar.startOfDay(for: Date()) && !isToday
-        let hasEvents = dateHasEvents(date)
         let isSelected = selectedDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false
+        let dayStart = calendar.startOfDay(for: date)
+        let count = eventCounts[dayStart] ?? 0
+        let showHeatmap = appState.settings.showCalendarHeatmap && isCurrentMonth
 
         Button {
             selectedDate = date
         } label: {
             VStack(spacing: 2) {
                 ZStack {
+                    // Heatmap background
+                    if showHeatmap && count > 0 && !isToday {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(accentRed.opacity(heatmapOpacity(count: count)))
+                            .frame(width: 28, height: 28)
+                    }
+
                     if isToday {
                         Circle()
                             .fill(accentRed)
@@ -111,16 +123,28 @@ struct CalendarGridView: View {
                             isPast ? .gray : .primary
                         )
                 }
-                .frame(height: 26)
+                .frame(height: 28)
 
-                // Event dot
-                Circle()
-                    .fill(hasEvents ? Color.secondary : Color.clear)
-                    .frame(width: 4, height: 4)
+                // Event dot (when heatmap is off)
+                if !showHeatmap {
+                    Circle()
+                        .fill(count > 0 ? Color.secondary : Color.clear)
+                        .frame(width: 4, height: 4)
+                }
             }
         }
         .buttonStyle(.plain)
-        .frame(height: 34)
+        .frame(height: showHeatmap ? 32 : 34)
+    }
+
+    private func heatmapOpacity(count: Int) -> Double {
+        switch count {
+        case 1: return 0.08
+        case 2: return 0.15
+        case 3: return 0.22
+        case 4: return 0.30
+        default: return min(0.40, 0.30 + Double(count - 4) * 0.03)
+        }
     }
 
     // MARK: - Helpers
@@ -143,16 +167,17 @@ struct CalendarGridView: View {
         calendar.component(.weekOfYear, from: date)
     }
 
-    private func dateHasEvents(_ date: Date) -> Bool {
-        let startOfDay = calendar.startOfDay(for: date)
-        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return false }
-        return appState.todayEvents.contains { event in
-            // For today's events we have them loaded, for other days check the calendar
-            if calendar.isDate(date, inSameDayAs: Date()) {
-                return true // We know today has events if todayEvents is not empty
-            }
-            return false
-        }
+    private func loadEventCounts() {
+        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: displayedMonth))!
+        guard let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth) else { return }
+        // Extend range to cover visible prev/next month days
+        let start = calendar.date(byAdding: .day, value: -7, to: startOfMonth)!
+        let end = calendar.date(byAdding: .day, value: 7, to: endOfMonth)!
+        eventCounts = appState.calendarService.eventCounts(
+            from: start,
+            to: end,
+            disabledCalendarIds: appState.settings.disabledCalendarIds
+        )
     }
 
     private var calendarWeeks: [[Date]] {

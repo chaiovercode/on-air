@@ -6,7 +6,7 @@ struct AgendaView: View {
     let selectedDate: Date?
     var onNewEvent: (() -> Void)? = nil
 
-    private let accentRed = Color(red: 0.9, green: 0.25, blue: 0.2)
+    private var accentRed: Color { Color(hex: appState.settings.accentColorHex) }
     private let calendar = Calendar.current
 
     var body: some View {
@@ -49,7 +49,9 @@ struct AgendaView: View {
                             isNext: false,
                             isInProgress: false,
                             isPast: true,
-                            accentRed: accentRed
+                            accentRed: accentRed,
+                            use24HourTime: appState.settings.use24HourTime,
+                            hasConflict: appState.hasConflict(event)
                         )
                     }
 
@@ -65,7 +67,9 @@ struct AgendaView: View {
                             isNext: event.id == appState.nextEvent?.id && !isInProgress(event),
                             isInProgress: isInProgress(event),
                             isPast: false,
-                            accentRed: accentRed
+                            accentRed: accentRed,
+                            use24HourTime: appState.settings.use24HourTime,
+                            hasConflict: appState.hasConflict(event)
                         )
                     }
                 }

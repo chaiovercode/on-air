@@ -9,7 +9,7 @@ final class CalendarService: ObservableObject {
 
     private let store = EKEventStore()
     @Published private(set) var authorizationStatus: AuthorizationStatus = .notDetermined
-    @Published private(set) var availableCalendars: [(id: String, title: String)] = []
+    @Published private(set) var availableCalendars: [(id: String, title: String, colorHex: String)] = []
 
     func requestAccess() async -> Bool {
         do {
@@ -57,11 +57,16 @@ final class CalendarService: ObservableObject {
     }
 
     func startObserving(onChange: @escaping () -> Void) {
+        loadCalendars()
+
         NotificationCenter.default.addObserver(
             forName: .EKEventStoreChanged,
             object: store,
             queue: .main
-        ) { _ in onChange() }
+        ) { [weak self] _ in
+            self?.loadCalendars()
+            onChange()
+        }
 
         NotificationCenter.default.addObserver(
             forName: .NSCalendarDayChanged,
@@ -72,8 +77,31 @@ final class CalendarService: ObservableObject {
 
     private func loadCalendars() {
         availableCalendars = store.calendars(for: .event)
-            .map { (id: $0.calendarIdentifier, title: $0.title) }
+            .map { cal in
+                let hex = cal.cgColor.flatMap { c -> String? in
+                    guard let rgb = c.converted(to: CGColorSpaceCreateDeviceRGB(), intent: .defaultIntent, options: nil),
+                          let comps = rgb.components, comps.count >= 3 else { return nil }
+                    return String(format: "#%02X%02X%02X", Int(comps[0] * 255), Int(comps[1] * 255), Int(comps[2] * 255))
+                } ?? "#999999"
+                return (id: cal.calendarIdentifier, title: cal.title, colorHex: hex)
+            }
             .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+    }
+
+    /// Returns a dictionary of [startOfDay: eventCount] for heatmap display
+    func eventCounts(from startDate: Date, to endDate: Date, disabledCalendarIds: Set<String>) -> [Date: Int] {
+        let predicate = store.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+        let events = store.events(matching: predicate)
+            .filter { !$0.isAllDay && $0.status != .canceled }
+            .filter { !disabledCalendarIds.contains($0.calendar.calendarIdentifier) }
+
+        let cal = Calendar.current
+        var counts: [Date: Int] = [:]
+        for event in events {
+            let day = cal.startOfDay(for: event.startDate)
+            counts[day, default: 0] += 1
+        }
+        return counts
     }
 
     func fetchAllDayEvents(from startDate: Date, to endDate: Date, disabledCalendarIds: Set<String>) -> [CalendarEvent] {
