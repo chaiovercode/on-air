@@ -16,6 +16,10 @@ final class StatsService: ObservableObject {
     }
 
     func recordAttendance(_ event: CalendarEvent) {
+        // Prevent duplicate recordings
+        guard !records.contains(where: { $0.eventId == event.id }) else { return }
+        // Only record past meetings
+        guard event.endDate <= Date() else { return }
         let record = MeetingRecord(from: event)
         records.append(record)
         saveRecords()

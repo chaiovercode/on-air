@@ -112,6 +112,48 @@ final class CalendarService: ObservableObject {
             .filter { !disabledCalendarIds.contains($0.calendarId) }
     }
 
+    /// Moves an event to a new time. Returns (success, attendeeCount) for confirmation flow.
+    func moveEvent(id: String, newStart: Date, newEnd: Date) -> Bool {
+        let predicate = store.predicateForEvents(
+            withStart: Calendar.current.startOfDay(for: Date()),
+            end: Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: Date()))!,
+            calendars: nil
+        )
+        guard let ekEvent = store.events(matching: predicate).first(where: { $0.eventIdentifier == id }) else {
+            return false
+        }
+        ekEvent.startDate = newStart
+        ekEvent.endDate = newEnd
+        do {
+            try store.save(ekEvent, span: .thisEvent, commit: true)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Returns the number of attendees for an event
+    func attendeeCount(eventId: String) -> Int {
+        let predicate = store.predicateForEvents(
+            withStart: Calendar.current.startOfDay(for: Date()),
+            end: Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: Date()))!,
+            calendars: nil
+        )
+        guard let ekEvent = store.events(matching: predicate).first(where: { $0.eventIdentifier == eventId }) else {
+            return 0
+        }
+        return ekEvent.attendees?.count ?? 0
+    }
+
+    /// Fetches Focus Block events (which are excluded from regular fetchEvents by shouldShow)
+    func fetchFocusBlocks(from startDate: Date, to endDate: Date) -> [CalendarEvent] {
+        let predicate = store.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+        return store.events(matching: predicate)
+            .filter { $0.title == "Focus Block" && !$0.isAllDay && $0.status != .canceled }
+            .map { mapEvent($0) }
+            .sorted()
+    }
+
     /// Creates a "Focus Block" event in the specified calendar, marked as busy
     func createFocusBlock(from start: Date, to end: Date, calendarId: String?) -> Bool {
         let event = EKEvent(eventStore: store)

@@ -25,7 +25,6 @@
 		A1B2C3D4E5F6A7B8C9D0E1F2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F1E2D3C4B5A6978869504132 /* Assets.xcassets */; };
 		A45ACF50A55E6E307F926DC9 /* MeetingPlatformTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A816CFF43D46BA7968C7F1F /* MeetingPlatformTests.swift */; };
 		AA11BB22CC33DD44EE55FF66 /* FocusSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB22CC33DD44EE55FF660011 /* FocusSession.swift */; };
-		AABB001122334455EEFF6677 /* BirthdayCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBCC001122334455EEFF6677 /* BirthdayCardView.swift */; };
 		AC609F4CD0764133F94C636D /* PopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C890880E7A676CF6D5D8B8E /* PopoverView.swift */; };
 		B2C3D4E5F6A7B8C9D0E1F2A3 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6A7B8C9D0E1F2A3B4C5 /* OnboardingView.swift */; };
 		B6145EA33AC1D48E00463608 /* OnAirApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4911B995FEF251AC7EC4B2F /* OnAirApp.swift */; };
@@ -78,7 +77,6 @@
 		AC9A5BE115AE1D9699283341 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		B1160D74E47D9DB38FB0AF74 /* CalendarEventTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarEventTests.swift; sourceTree = "<group>"; };
 		BB22CC33DD44EE55FF660011 /* FocusSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusSession.swift; sourceTree = "<group>"; };
-		BBCC001122334455EEFF6677 /* BirthdayCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BirthdayCardView.swift; sourceTree = "<group>"; };
 		C17106E5A7263E5016709EB8 /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
 		CF764E04315F31D278D72CFA /* countdown.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = countdown.wav; sourceTree = "<group>"; };
 		D4E5F6A7B8C9D0E1F2A3B4C5 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
@@ -119,7 +117,6 @@
 			isa = PBXGroup;
 			children = (
 				FEBEF20A59B70FAF0D8C01BC /* AgendaView.swift */,
-				BBCC001122334455EEFF6677 /* BirthdayCardView.swift */,
 				70D87AF08954646FC71487E5 /* CalendarGridView.swift */,
 				5530F766BD87E51CA2770255 /* EventDetailView.swift */,
 				FF660011223344AABB22CC33 /* FocusTimerView.swift */,
@@ -289,7 +286,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				F586EEC0365FE5C25706B5F2 /* AgendaView.swift in Sources */,
-				AABB001122334455EEFF6677 /* BirthdayCardView.swift in Sources */,
 				16A2FBE86C19795D7F13E49B /* AppState.swift in Sources */,
 				9A9BF9F728EFD358D104AE8A /* CalendarEvent.swift in Sources */,
 				4C7CC9D98BB8AD550BC2FCF8 /* CalendarGridView.swift in Sources */,

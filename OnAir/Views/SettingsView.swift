@@ -424,13 +424,13 @@ struct SettingsView: View {
     // MARK: - Display Tab
 
     private let accentPresets: [(name: String, hex: String)] = [
-        ("Red",    "#E6402E"),
-        ("Orange", "#FF9500"),
-        ("Coral",  "#E05C44"),
-        ("Blue",   "#3A8EE6"),
-        ("Green",  "#4CAF50"),
-        ("Purple", "#9C5EC0"),
-        ("Pink",   "#E668A0"),
+        ("Coral",    "#FF6B6B"),
+        ("Tangerine","#FF8C42"),
+        ("Lemon",    "#FFD93D"),
+        ("Mint",     "#38E8A0"),
+        ("Electric", "#4DA6FF"),
+        ("Violet",   "#B266FF"),
+        ("Fuchsia",  "#FF4DA6"),
     ]
 
     @State private var customHex = ""
@@ -487,13 +487,13 @@ struct SettingsView: View {
 
                             Spacer()
 
-                            TextField("#FF9500", text: Binding(
-                                get: { settings.accentColorHex },
-                                set: { v in
-                                    let clean = v.hasPrefix("#") ? v : "#\(v)"
-                                    if clean.count <= 7 { settings.accentColorHex = clean }
+                            TextField("#FF9500", text: $customHex)
+                                .onSubmit {
+                                    let clean = customHex.hasPrefix("#") ? customHex : "#\(customHex)"
+                                    if clean.count == 7 { settings.accentColorHex = clean }
                                 }
-                            ))
+                                .onAppear { customHex = settings.accentColorHex }
+                                .onChange(of: settings.accentColorHex) { val in customHex = val }
                             .textFieldStyle(.plain)
                             .font(.system(size: 12, weight: .medium, design: .monospaced))
                             .foregroundStyle(P.text1)

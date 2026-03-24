@@ -41,7 +41,6 @@ final class UserSettings: ObservableObject {
         self.accentColorHex = defaults.string(forKey: "accentColorHex") ?? "#E6402E"
         self.use24HourTime = defaults.bool(forKey: "use24HourTime")
         self.showYearProgress = defaults.object(forKey: "showYearProgress") as? Bool ?? true
-        self.showSunArc = defaults.object(forKey: "showSunArc") as? Bool ?? true
         self.showCalendarHeatmap = defaults.object(forKey: "showCalendarHeatmap") as? Bool ?? true
         self.wrapUpMinutes = defaults.object(forKey: "wrapUpMinutes") as? Int ?? 2
         self.focusCalendarId = defaults.string(forKey: "focusCalendarId")
@@ -113,10 +112,6 @@ final class UserSettings: ObservableObject {
 
     @Published var showYearProgress: Bool = true {
         didSet { defaults.set(showYearProgress, forKey: "showYearProgress") }
-    }
-
-    @Published var showSunArc: Bool = true {
-        didSet { defaults.set(showSunArc, forKey: "showSunArc") }
     }
 
     @Published var showCalendarHeatmap: Bool = true {

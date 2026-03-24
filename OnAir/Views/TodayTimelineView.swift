@@ -4,12 +4,18 @@ struct TodayTimelineView: View {
 
     @ObservedObject var appState: AppState
     @State private var dismissedGaps: Set<String> = []
-    @State private var bookedGaps: Set<String> = []
     @State private var activeMenuKey: String? = nil
+
+    // Drag state
+    @State private var draggingEvent: CalendarEvent? = nil
+    @State private var dragOffset: CGFloat = 0
+    @State private var showMoveConfirm = false
+    @State private var pendingMove: (event: CalendarEvent, newStart: Date, newEnd: Date)? = nil
 
     private var accentColor: Color { Color(hex: appState.settings.accentColorHex) }
     private let calendar = Calendar.current
     private let hourHeight: CGFloat = 56
+    private let snapInterval: TimeInterval = 15 * 60 // 15 min snap
 
     private func gapKey(start: Date, end: Date) -> String {
         "\(Int(start.timeIntervalSince1970))-\(Int(end.timeIntervalSince1970))"
@@ -46,6 +52,127 @@ struct TodayTimelineView: View {
                 }
             }
         }
+        .overlay {
+            if showMoveConfirm, let move = pendingMove {
+                moveConfirmDialog(event: move.event, newStart: move.newStart, newEnd: move.newEnd)
+            }
+        }
+    }
+
+    // MARK: - Move Confirmation
+
+    private func moveConfirmDialog(event: CalendarEvent, newStart: Date, newEnd: Date) -> some View {
+        let attendees = appState.calendarService.attendeeCount(eventId: event.id)
+        let tf = DateFormatter()
+        tf.dateFormat = appState.settings.use24HourTime ? "HH:mm" : "h:mm a"
+
+        return ZStack {
+            Color.black.opacity(0.4)
+                .onTapGesture {
+                    showMoveConfirm = false
+                    pendingMove = nil
+                }
+
+            VStack(spacing: 0) {
+                // Title
+                VStack(spacing: 6) {
+                    Image(systemName: "arrow.up.and.down")
+                        .font(.system(size: 18))
+                        .foregroundStyle(accentColor)
+                    Text("Move event?")
+                        .font(.system(size: 14, weight: .bold))
+                }
+                .padding(.top, 16)
+                .padding(.bottom, 12)
+
+                // Event details
+                VStack(spacing: 4) {
+                    Text(event.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+
+                    HStack(spacing: 6) {
+                        Text(tf.string(from: event.startDate))
+                            .foregroundStyle(.white.opacity(0.4))
+                            .strikethrough(true, color: .white.opacity(0.3))
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 9))
+                            .foregroundStyle(accentColor)
+                        Text(tf.string(from: newStart))
+                            .foregroundStyle(accentColor)
+                    }
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+
+                if attendees > 0 {
+                    Rectangle().fill(.white.opacity(0.06)).frame(height: 0.5).padding(.horizontal, 12)
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.orange)
+                        Text("\(attendees) attendee\(attendees == 1 ? "" : "s") will be notified")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.orange.opacity(0.8))
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 16)
+                }
+
+                Rectangle().fill(.white.opacity(0.06)).frame(height: 0.5).padding(.horizontal, 12)
+
+                // Buttons
+                HStack(spacing: 8) {
+                    Button {
+                        showMoveConfirm = false
+                        pendingMove = nil
+                    } label: {
+                        Text("Cancel")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.6))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .fill(.white.opacity(0.06))
+                            )
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        let ok = appState.calendarService.moveEvent(
+                            id: event.id, newStart: newStart, newEnd: newEnd
+                        )
+                        if ok { appState.refreshEvents() }
+                        showMoveConfirm = false
+                        pendingMove = nil
+                    } label: {
+                        Text(attendees > 0 ? "Move & Notify" : "Move")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .fill(accentColor)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(12)
+            }
+            .frame(width: 240)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(red: 0.12, green: 0.11, blue: 0.10))
+                    .shadow(color: .black.opacity(0.6), radius: 20, y: 8)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+            )
+        }
     }
 
     // MARK: - Header
@@ -68,9 +195,18 @@ struct TodayTimelineView: View {
                 Text("\(events.count) meeting\(events.count == 1 ? "" : "s")")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
-                Text("\(totalFocusMinutes)m focus available")
-                    .font(.system(size: 10))
-                    .foregroundStyle(accentColor.opacity(0.7))
+                let focusMins = totalFocusMinutes
+                if focusMins > 0 {
+                    Text("\(focusMins)m focus available")
+                        .font(.system(size: 10))
+                        .foregroundStyle(accentColor.opacity(0.7))
+                }
+                let bookedMins = totalBookedMinutes
+                if bookedMins > 0 {
+                    Text("\(bookedMins)m focus booked")
+                        .font(.system(size: 10))
+                        .foregroundStyle(accentColor.opacity(0.5))
+                }
             }
         }
         .padding(.horizontal, 14)
@@ -97,11 +233,11 @@ struct TodayTimelineView: View {
                     }
                     .frame(height: hourHeight)
                     .contentShape(Rectangle())
-                    .onTapGesture(count: 2) {
+                    .gesture(TapGesture(count: 2).onEnded {
                         withAnimation(.easeOut(duration: 0.15)) {
                             activeHourMenu = activeHourMenu == hour ? nil : hour
                         }
-                    }
+                    })
 
                     if activeHourMenu == hour {
                         VStack(alignment: .leading, spacing: 0) {
@@ -153,23 +289,24 @@ struct TodayTimelineView: View {
         return ForEach(Array(slots.enumerated()), id: \.offset) { _, slot in
             switch slot {
             case .meeting(let event):
-                meetingBlock(event)
-                    .frame(height: heightForDuration(event.durationMinutes))
-                    .offset(y: offsetForTime(event.startDate))
+                draggableBlock(event: event) { meetingBlock(event) }
+
+            case .focusBlock(let event):
+                draggableBlock(event: event) {
+                    bookedBlock(
+                        start: event.startDate,
+                        end: event.endDate,
+                        minutes: event.durationMinutes
+                    )
+                }
 
             case .focusGap(let start, let end):
                 let mins = Int(end.timeIntervalSince(start) / 60)
                 let key = gapKey(start: start, end: end)
                 if mins >= 30 && !dismissedGaps.contains(key) {
-                    if bookedGaps.contains(key) {
-                        bookedBlock(start: start, end: end, minutes: mins)
-                            .frame(height: heightForDuration(mins))
-                            .offset(y: offsetForTime(start))
-                    } else {
-                        focusBlock(start: start, end: end, minutes: mins)
-                            .frame(height: heightForDuration(mins))
-                            .offset(y: offsetForTime(start))
-                    }
+                    focusBlock(start: start, end: end, minutes: mins)
+                        .frame(height: heightForDuration(mins))
+                        .offset(y: offsetForTime(start))
                 }
 
             case .commute(let start, let end, let isMorning):
@@ -307,7 +444,7 @@ struct TodayTimelineView: View {
             if remaining > 0 && autoMins >= 30 {
                 panelRow(icon: "calendar.badge.plus", label: "Block \(autoMins)m", color: accentColor) {
                     bookFocusBlock(from: start, minutes: autoMins)
-                    _ = bookedGaps.insert(key)
+
                     activeMenuKey = nil
                 }
                 panelDivider
@@ -328,7 +465,7 @@ struct TodayTimelineView: View {
                     ForEach(durations, id: \.self) { m in
                         Button {
                             bookFocusBlock(from: start, minutes: m)
-                            _ = bookedGaps.insert(key)
+        
                             activeMenuKey = nil
                         } label: {
                             Text("\(m)m")
@@ -397,6 +534,43 @@ struct TodayTimelineView: View {
             .fill(.white.opacity(0.06))
             .frame(height: 0.5)
             .padding(.horizontal, 8)
+    }
+
+    private func draggableBlock<Content: View>(event: CalendarEvent, @ViewBuilder content: () -> Content) -> some View {
+        let isDragging = draggingEvent?.id == event.id
+        return content()
+            .frame(height: heightForDuration(event.durationMinutes))
+            .offset(y: offsetForTime(event.startDate) + (isDragging ? dragOffset : 0))
+            .opacity(isDragging ? 0.8 : 1)
+            .zIndex(isDragging ? 100 : 1)
+            .highPriorityGesture(
+                LongPressGesture(minimumDuration: 0.4)
+                    .sequenced(before: DragGesture(minimumDistance: 5))
+                    .onChanged { value in
+                        switch value {
+                        case .second(true, let drag):
+                            if draggingEvent == nil {
+                                draggingEvent = event
+                                NSCursor.closedHand.push()
+                            }
+                            if let drag { dragOffset = drag.translation.height }
+                        default: break
+                        }
+                    }
+                    .onEnded { _ in
+                        NSCursor.pop()
+                        guard let evt = draggingEvent else { return }
+                        let snappedMinutes = round(Double(dragOffset) / hourHeight * 60 / 15) * 15
+                        let newStart = evt.startDate.addingTimeInterval(snappedMinutes * 60)
+                        let newEnd = evt.endDate.addingTimeInterval(snappedMinutes * 60)
+                        if abs(snappedMinutes) >= 15 {
+                            pendingMove = (evt, newStart, newEnd)
+                            showMoveConfirm = true
+                        }
+                        draggingEvent = nil
+                        dragOffset = 0
+                    }
+            )
     }
 
     private func bookFocusBlock(from start: Date, minutes: Int) {
@@ -551,8 +725,17 @@ struct TodayTimelineView: View {
         appState.todayEvents.filter { $0.endDate > Date() || appState.settings.showPastMeetings }
     }
 
+    /// Focus Block events from calendar (filtered out of main todayEvents by shouldShow)
+    private var focusBlockEvents: [CalendarEvent] {
+        let cal = Calendar.current
+        let start = cal.startOfDay(for: Date())
+        guard let end = cal.date(byAdding: .day, value: 1, to: start) else { return [] }
+        return appState.calendarService.fetchFocusBlocks(from: start, to: end)
+    }
+
     private enum TimeSlot {
         case meeting(CalendarEvent)
+        case focusBlock(CalendarEvent)
         case focusGap(start: Date, end: Date)
         case commute(start: Date, end: Date, isMorning: Bool)
     }
@@ -596,7 +779,9 @@ struct TodayTimelineView: View {
     private let focusBuffer: TimeInterval = 30 * 60 // 30 min buffer around meetings
 
     private func buildTimeSlots() -> [TimeSlot] {
-        let sorted = events.sorted { $0.startDate < $1.startDate }
+        // Merge meetings + focus blocks to compute gaps correctly
+        let allOccupied = (events + focusBlockEvents).sorted { $0.startDate < $1.startDate }
+        let sorted = allOccupied
         var slots: [TimeSlot] = []
         var cursor = sorted.first?.startDate ?? Date()
 
@@ -621,7 +806,11 @@ struct TodayTimelineView: View {
                     slots.append(.focusGap(start: gap.0, end: gap.1))
                 }
             }
-            slots.append(.meeting(event))
+            if event.isFocusBlock {
+                slots.append(.focusBlock(event))
+            } else {
+                slots.append(.meeting(event))
+            }
             cursor = max(cursor, event.endDate)
         }
 
@@ -648,6 +837,7 @@ struct TodayTimelineView: View {
     private func startTime(_ slot: TimeSlot) -> Date {
         switch slot {
         case .meeting(let e): return e.startDate
+        case .focusBlock(let e): return e.startDate
         case .focusGap(let s, _): return s
         case .commute(let s, _, _): return s
         }
@@ -665,15 +855,7 @@ struct TodayTimelineView: View {
 
     /// Total minutes of focus blocks booked today (from calendar events titled "Focus Block")
     private var totalBookedMinutes: Int {
-        let cal = Calendar.current
-        let start = cal.startOfDay(for: Date())
-        guard let end = cal.date(byAdding: .day, value: 1, to: start) else { return 0 }
-        let allEvents = appState.calendarService.fetchEvents(
-            from: start, to: end, disabledCalendarIds: []
-        )
-        return allEvents
-            .filter { $0.isFocusBlock }
-            .reduce(0) { $0 + $1.durationMinutes }
+        focusBlockEvents.reduce(0) { $0 + $1.durationMinutes }
     }
 
     // MARK: - Layout Helpers
