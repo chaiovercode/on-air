@@ -97,10 +97,27 @@ struct AgendaView: View {
 
     private func daySectionHeader(_ day: AgendaDay) -> some View {
         HStack {
-            Text(day.headerText)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(day.isToday ? accentRed : .secondary)
-                .tracking(1.5)
+            if day.isToday {
+                Button {
+                    NotificationCenter.default.post(name: .toggleTimeline, object: nil)
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(day.headerText)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(accentRed)
+                            .tracking(1.5)
+                        Image(systemName: "arrow.left.arrow.right")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(accentRed.opacity(0.5))
+                    }
+                }
+                .buttonStyle(.plain)
+            } else {
+                Text(day.headerText)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .tracking(1.5)
+            }
 
             Spacer()
 

@@ -8,6 +8,7 @@ struct PopoverView: View {
     @State private var selectedDate: Date? = nil
     @State private var calendarCollapsed = false
     @State private var scrollToFocus = false
+    @State private var showTimeline = false
     @State private var greetingIndex = 0
 
     private var accentRed: Color { Color(hex: appState.settings.accentColorHex) }
@@ -48,48 +49,64 @@ struct PopoverView: View {
             if appState.calendarAccessDenied {
                 calendarAccessView
             } else {
-                ScrollViewReader { proxy in
-                    ScrollView(.vertical, showsIndicators: true) {
-                        VStack(spacing: 0) {
-                            // Year progress bar
-                            if appState.settings.showYearProgress {
-                                YearProgressView(accentColor: accentRed)
+                ZStack {
+                    // Front: calendar + agenda
+                    if !showTimeline {
+                        ScrollViewReader { proxy in
+                            ScrollView(.vertical, showsIndicators: true) {
+                                VStack(spacing: 0) {
+                                    // Year progress bar
+                                    if appState.settings.showYearProgress {
+                                        YearProgressView(accentColor: accentRed)
+                                            .padding(.horizontal, 14)
+                                            .padding(.bottom, 6)
+                                    }
+
+                                    // Calendar grid (collapsible)
+                                    if !calendarCollapsed {
+                                        CalendarGridView(
+                                            appState: appState,
+                                            displayedMonth: $displayedMonth,
+                                            selectedDate: $selectedDate
+                                        )
+                                        .padding(.horizontal, 14)
+                                        .padding(.bottom, 8)
+                                    }
+
+                                    // Agenda
+                                    AgendaView(appState: appState, selectedDate: selectedDate) {
+                                        NotificationCenter.default.post(name: .toggleNewEvent, object: nil)
+                                    }
                                     .padding(.horizontal, 14)
-                                    .padding(.bottom, 6)
+                                    .padding(.bottom, 8)
+
+                                    // Focus Timer
+                                    FocusTimerView(appState: appState)
+                                        .id("focusTimer")
+                                        .padding(.horizontal, 14)
+                                        .padding(.bottom, 12)
+                                }
                             }
-
-
-                            // Calendar grid (collapsible)
-                            if !calendarCollapsed {
-                                CalendarGridView(
-                                    appState: appState,
-                                    displayedMonth: $displayedMonth,
-                                    selectedDate: $selectedDate
-                                )
-                                .padding(.horizontal, 14)
-                                .padding(.bottom, 8)
+                            .onChange(of: scrollToFocus) { val in
+                                if val {
+                                    withAnimation { proxy.scrollTo("focusTimer", anchor: .bottom) }
+                                    scrollToFocus = false
+                                }
                             }
-
-                            // Agenda
-                            AgendaView(appState: appState, selectedDate: selectedDate) {
-                                NotificationCenter.default.post(name: .toggleNewEvent, object: nil)
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.bottom, 8)
-
-                            // Focus Timer
-                            FocusTimerView(appState: appState)
-                                .id("focusTimer")
-                                .padding(.horizontal, 14)
-                                .padding(.bottom, 12)
                         }
+                        .rotation3DEffect(.degrees(showTimeline ? 180 : 0), axis: (x: 0, y: 1, z: 0))
                     }
-                    .onChange(of: scrollToFocus) { val in
-                        if val {
-                            withAnimation { proxy.scrollTo("focusTimer", anchor: .bottom) }
-                            scrollToFocus = false
-                        }
+
+                    // Back: today timeline
+                    if showTimeline {
+                        TodayTimelineView(appState: appState)
+                            .padding(.top, 8)
+                            .rotation3DEffect(.degrees(showTimeline ? 0 : -180), axis: (x: 0, y: 1, z: 0))
                     }
+                }
+                .animation(.easeInOut(duration: 0.4), value: showTimeline)
+                .onReceive(NotificationCenter.default.publisher(for: .toggleTimeline)) { _ in
+                    showTimeline.toggle()
                 }
 
                 // Footer

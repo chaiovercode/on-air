@@ -7,6 +7,7 @@ extension Notification.Name {
     static let toggleNewEvent = Notification.Name("OnAir.toggleNewEvent")
     static let toggleSearch = Notification.Name("OnAir.toggleSearch")
     static let dismissOverlays = Notification.Name("OnAir.dismissOverlays")
+    static let toggleTimeline = Notification.Name("OnAir.toggleTimeline")
     static let popoverWidthChange = Notification.Name("OnAir.popoverWidthChange")
 }
 
@@ -134,6 +135,12 @@ final class StatusBarManager: NSObject {
             if flags == .command, event.charactersIgnoringModifiers == "," {
                 NotificationCenter.default.post(name: .dismissOverlays, object: nil)
                 NotificationCenter.default.post(name: .openSettings, object: nil)
+                return nil
+            }
+
+            // T — toggle today timeline
+            if flags.isEmpty, event.charactersIgnoringModifiers == "t" {
+                NotificationCenter.default.post(name: .toggleTimeline, object: nil)
                 return nil
             }
 
