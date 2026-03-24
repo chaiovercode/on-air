@@ -222,8 +222,13 @@ struct SettingsView: View {
                         .pickerStyle(.menu)
                         .frame(width: 100)
                     }
-                    iconRow("music.note", "Sound", sub: soundLabel) {
+                    iconRow("music.note", "Sound", sub: nil) {
                         HStack(spacing: 6) {
+                            Text(soundLabel)
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundStyle(P.text2)
+                                .lineLimit(1)
+                                .frame(maxWidth: 100, alignment: .trailing)
                             Pill("Change…") { selectSoundFile() }
                             Pill("Test") {
                                 appState.countdownPlayer.playTestSound(customPath: settings.customSoundPath, volume: Float(settings.volume))
@@ -340,10 +345,8 @@ struct SettingsView: View {
                     }
                 }
             }
-            .frame(maxWidth: 480)
             .padding(.horizontal, 24).padding(.vertical, 8)
         }
-        .frame(maxWidth: .infinity)
     }
 
     private func commuteTimePicker(hour: Binding<Int>, minute: Binding<Int>) -> some View {
