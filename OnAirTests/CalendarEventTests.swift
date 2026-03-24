@@ -24,7 +24,8 @@ final class CalendarEventTests: XCTestCase {
             status: status,
             participationStatus: participationStatus,
             calendarTitle: "Work",
-            calendarId: "cal-1"
+            calendarId: "cal-1",
+            calendarColorHex: "#4285F4"
         )
     }
 

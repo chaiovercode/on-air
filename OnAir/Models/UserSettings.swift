@@ -34,9 +34,16 @@ final class UserSettings: ObservableObject {
         self.leadTimeSeconds = defaults.object(forKey: "leadTimeSeconds") as? Int ?? 45
         self.volume = defaults.object(forKey: "volume") as? Double ?? 0.75
         self.showPastMeetings = defaults.bool(forKey: "showPastMeetings")
+        self.hideEmptyDays = defaults.bool(forKey: "hideEmptyDays")
         self.launchAtLogin = defaults.bool(forKey: "launchAtLogin")
         self.trackStats = defaults.object(forKey: "trackStats") as? Bool ?? true
         self.customSoundPath = defaults.string(forKey: "customSoundPath")
+        if let data = defaults.data(forKey: "worldClockIds"),
+           let ids = try? JSONDecoder().decode([String].self, from: data) {
+            self.worldClockIds = ids
+        } else {
+            self.worldClockIds = ["America/New_York"]
+        }
         if let data = defaults.data(forKey: "disabledCalendarIds") {
             self._disabledCalendarIds = (try? JSONDecoder().decode(Set<String>.self, from: data)) ?? []
         }
@@ -54,6 +61,10 @@ final class UserSettings: ObservableObject {
         didSet { defaults.set(showPastMeetings, forKey: "showPastMeetings") }
     }
 
+    @Published var hideEmptyDays: Bool = false {
+        didSet { defaults.set(hideEmptyDays, forKey: "hideEmptyDays") }
+    }
+
     @Published var launchAtLogin: Bool = false {
         didSet { defaults.set(launchAtLogin, forKey: "launchAtLogin") }
     }
@@ -64,6 +75,13 @@ final class UserSettings: ObservableObject {
 
     @Published var customSoundPath: String? {
         didSet { defaults.set(customSoundPath, forKey: "customSoundPath") }
+    }
+
+    @Published var worldClockIds: [String] = [] {
+        didSet {
+            let data = try? JSONEncoder().encode(worldClockIds)
+            defaults.set(data, forKey: "worldClockIds")
+        }
     }
 
     @Published private var _disabledCalendarIds: Set<String> = [] {

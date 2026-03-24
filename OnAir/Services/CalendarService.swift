@@ -76,6 +76,14 @@ final class CalendarService: ObservableObject {
             .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
     }
 
+    func fetchAllDayEvents(from startDate: Date, to endDate: Date, disabledCalendarIds: Set<String>) -> [CalendarEvent] {
+        let predicate = store.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+        return store.events(matching: predicate)
+            .map { mapEvent($0) }
+            .filter { $0.isAllDay && $0.status != .cancelled && $0.participationStatus != .declined }
+            .filter { !disabledCalendarIds.contains($0.calendarId) }
+    }
+
     private func mapEvent(_ ekEvent: EKEvent) -> CalendarEvent {
         CalendarEvent(
             id: ekEvent.eventIdentifier,
@@ -88,8 +96,18 @@ final class CalendarService: ObservableObject {
             status: mapStatus(ekEvent.status),
             participationStatus: mapParticipation(ekEvent),
             calendarTitle: ekEvent.calendar.title,
-            calendarId: ekEvent.calendar.calendarIdentifier
+            calendarId: ekEvent.calendar.calendarIdentifier,
+            calendarColorHex: colorHex(from: ekEvent.calendar)
         )
+    }
+
+    private func colorHex(from calendar: EKCalendar) -> String {
+        guard let converted = calendar.cgColor.converted(
+            to: CGColorSpaceCreateDeviceRGB(), intent: .defaultIntent, options: nil
+        ), let c = converted.components, c.count >= 3 else {
+            return "#808080"
+        }
+        return String(format: "#%02X%02X%02X", Int(c[0] * 255), Int(c[1] * 255), Int(c[2] * 255))
     }
 
     private func mapStatus(_ status: EKEventStatus) -> CalendarEvent.Status {

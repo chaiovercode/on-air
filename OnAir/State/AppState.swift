@@ -27,6 +27,14 @@ final class AppState: ObservableObject {
     private var tickTimer: Timer?
     private var countdownScheduled = false
     private var lastRecordedEventId: String?
+    private var settingsSink: AnyCancellable?
+
+    init() {
+        // Forward settings changes so views observing AppState re-render
+        settingsSink = settings.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
+    }
 
     // MARK: - Lifecycle
 
@@ -148,7 +156,7 @@ final class AppState: ObservableObject {
         }
 
         guard let next = nextEvent else {
-            return "● No meetings"
+            return nextFutureMeetingText
         }
 
         let remaining = Int(next.startDate.timeIntervalSinceNow)
@@ -160,9 +168,44 @@ final class AppState: ObservableObject {
 
         let timeStr = TimeFormatter.format(seconds: remaining)
         if countdownActive {
-            return "● \(truncatedTitle) in \(timeStr) 🔊"
+            return "● \(truncatedTitle) in \(timeStr) ♪"
         }
         return "● \(truncatedTitle) in \(timeStr)"
+    }
+
+    private var nextFutureMeetingText: String {
+        // Look ahead 7 days for the next event
+        let cal = Calendar.current
+        let now = Date()
+        let startOfTomorrow = cal.startOfDay(for: cal.date(byAdding: .day, value: 1, to: now) ?? now)
+        guard let endDate = cal.date(byAdding: .day, value: 7, to: now) else {
+            return "● All clear"
+        }
+
+        let futureEvents = calendarService.fetchEvents(
+            from: startOfTomorrow,
+            to: endDate,
+            disabledCalendarIds: settings.disabledCalendarIds
+        )
+
+        guard let nextFuture = futureEvents.first else {
+            return "● All clear"
+        }
+
+        let title = String(nextFuture.title.prefix(20))
+        let dayText: String
+        if cal.isDateInTomorrow(nextFuture.startDate) {
+            dayText = "Tomorrow"
+        } else {
+            let f = DateFormatter()
+            f.dateFormat = "EEE"
+            dayText = f.string(from: nextFuture.startDate)
+        }
+        let timeF = DateFormatter()
+        timeF.dateFormat = "h:mma"
+        let time = timeF.string(from: nextFuture.startDate).lowercased().replacingOccurrences(of: "am", with: "a").replacingOccurrences(of: "pm", with: "p")
+
+        return "● \(title) · \(dayText) \(time)"
     }
 
     var isNextEventInProgress: Bool {

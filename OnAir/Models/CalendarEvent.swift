@@ -21,6 +21,7 @@ struct CalendarEvent: Identifiable, Equatable, Comparable {
     let participationStatus: ParticipationStatus
     let calendarTitle: String
     let calendarId: String
+    let calendarColorHex: String
 
     var meetingLink: MeetingPlatform? {
         if let link = MeetingPlatform.detect(from: location) {

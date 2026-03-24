@@ -2,23 +2,34 @@ import AppKit
 import Combine
 import SwiftUI
 
+extension Notification.Name {
+    static let openSettings = Notification.Name("OnAir.openSettings")
+    static let toggleNewEvent = Notification.Name("OnAir.toggleNewEvent")
+    static let toggleSearch = Notification.Name("OnAir.toggleSearch")
+    static let dismissOverlays = Notification.Name("OnAir.dismissOverlays")
+}
+
 @MainActor
 final class StatusBarManager: NSObject {
 
     private var statusItem: NSStatusItem?
-    private var panel: FloatingPanel?
     private let appState: AppState
     private var cancellables = Set<AnyCancellable>()
-    private var eventMonitor: Any?
     private var blinkTimer: Timer?
     private var blinkVisible = true
+    private var settingsWindow: NSWindow?
 
     init(appState: AppState) {
         self.appState = appState
         super.init()
         setupStatusItem()
-        setupPanel()
         observeState()
+        observeSettingsNotification()
+        setupKeyboardShortcuts()
+    }
+
+    private func setupKeyboardShortcuts() {
+        // Not used — shortcuts are handled via NSMenuItem keyEquivalents on the menu
     }
 
     private func setupStatusItem() {
@@ -26,14 +37,57 @@ final class StatusBarManager: NSObject {
 
         if let button = statusItem?.button {
             updateTitle()
-            button.action = #selector(togglePanel)
-            button.target = self
+        }
+
+        let menu = NSMenu()
+        let menuItem = NSMenuItem()
+        let hostingView = NSHostingView(rootView: PopoverView(appState: appState))
+        let wrapper = KeyHandlingView(frame: NSRect(x: 0, y: 0, width: 300, height: 700))
+        hostingView.frame = wrapper.bounds
+        hostingView.autoresizingMask = [.width, .height]
+        wrapper.addSubview(hostingView)
+        menuItem.view = wrapper
+        menu.addItem(menuItem)
+        statusItem?.menu = menu
+    }
+
+    private func observeSettingsNotification() {
+        NotificationCenter.default.addObserver(forName: .openSettings, object: nil, queue: nil) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.statusItem?.menu?.cancelTracking()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    self?.showSettings()
+                }
+            }
         }
     }
 
-    private func setupPanel() {
-        let hostingView = NSHostingView(rootView: PopoverView(appState: appState))
-        panel = FloatingPanel(contentView: hostingView)
+    private func showSettings() {
+        if let window = settingsWindow {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let bgColor = NSColor(red: 0.098, green: 0.098, blue: 0.106, alpha: 1)
+
+        let view = SettingsView(appState: appState, settings: appState.settings)
+        let controller = NSHostingController(rootView: view)
+
+        let window = NSWindow(contentViewController: controller)
+        window.title = "OnAir Settings"
+        window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .visible
+        window.backgroundColor = bgColor
+        window.isMovableByWindowBackground = true
+        window.center()
+        window.isReleasedWhenClosed = false
+        window.hasShadow = true
+        settingsWindow = window
+
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func observeState() {
@@ -105,112 +159,36 @@ final class StatusBarManager: NSObject {
 
         button.attributedTitle = attributed
     }
-
-    @objc nonisolated private func togglePanel() {
-        Task { @MainActor in
-            self.doTogglePanel()
-        }
-    }
-
-    private func doTogglePanel() {
-        // Stop countdown sound on any click
-        if appState.countdownPlayer.isPlaying {
-            appState.countdownPlayer.stop()
-            appState.countdownActive = false
-        }
-
-        guard let panel, let button = statusItem?.button else { return }
-
-        if panel.isVisible {
-            hidePanel()
-        } else {
-            // Position below the status bar button
-            guard let buttonWindow = button.window else { return }
-            let buttonRect = button.convert(button.bounds, to: nil)
-            let screenRect = buttonWindow.convertToScreen(buttonRect)
-
-            let panelWidth = panel.frame.width
-            let x = screenRect.midX - panelWidth / 2
-            let y = screenRect.minY - 6
-
-            panel.setFrameTopLeftPoint(NSPoint(x: x, y: y))
-            panel.makeKeyAndOrderFront(nil)
-            startEventMonitor()
-        }
-    }
-
-    private func hidePanel() {
-        panel?.orderOut(nil)
-        stopEventMonitor()
-    }
-
-    private func startEventMonitor() {
-        eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            self?.hidePanel()
-        }
-    }
-
-    private func stopEventMonitor() {
-        if let monitor = eventMonitor {
-            NSEvent.removeMonitor(monitor)
-            eventMonitor = nil
-        }
-    }
 }
 
-// MARK: - Floating Panel (Custom Window)
+// MARK: - View wrapper that intercepts key events inside the NSMenu
 
-final class FloatingPanel: NSPanel {
+final class KeyHandlingView: NSView {
+    override var acceptsFirstResponder: Bool { true }
 
-    init(contentView: NSView) {
-        super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 380, height: 600),
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered,
-            defer: true
-        )
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
 
-        isOpaque = false
-        backgroundColor = .clear
-        level = .statusBar
-        hasShadow = true
-        isMovableByWindowBackground = false
-        hidesOnDeactivate = true
-        animationBehavior = .utilityWindow
+        // ⌘N — new event
+        if flags == .command, event.charactersIgnoringModifiers == "n" {
+            NotificationCenter.default.post(name: .toggleNewEvent, object: nil)
+            return true
+        }
+        // ⌘F — search
+        if flags == .command, event.charactersIgnoringModifiers == "f" {
+            NotificationCenter.default.post(name: .toggleSearch, object: nil)
+            return true
+        }
 
-        // Glass background with vibrancy
-        let rect = self.contentRect(forFrameRect: frame)
-        let visualEffect = NSVisualEffectView()
-        visualEffect.material = NSVisualEffectView.Material.popover
-        visualEffect.state = NSVisualEffectView.State.active
-        visualEffect.blendingMode = NSVisualEffectView.BlendingMode.behindWindow
-        visualEffect.wantsLayer = true
-        visualEffect.layer?.cornerRadius = 16
-        visualEffect.layer?.masksToBounds = true
-        visualEffect.frame = rect
-
-        self.contentView = visualEffect
-
-        // Add SwiftUI content
-        contentView.translatesAutoresizingMaskIntoConstraints = false
-        visualEffect.addSubview(contentView)
-        NSLayoutConstraint.activate([
-            contentView.topAnchor.constraint(equalTo: visualEffect.topAnchor),
-            contentView.bottomAnchor.constraint(equalTo: visualEffect.bottomAnchor),
-            contentView.leadingAnchor.constraint(equalTo: visualEffect.leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: visualEffect.trailingAnchor),
-        ])
+        return super.performKeyEquivalent(with: event)
     }
 
-    // Allow the panel to become key so controls work
-    override var canBecomeKey: Bool { true }
-
-    // Close on Escape
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 53 { // Escape
-            orderOut(nil)
-        } else {
-            super.keyDown(with: event)
+        // Esc — dismiss overlays
+        if event.keyCode == 53 {
+            NotificationCenter.default.post(name: .dismissOverlays, object: nil)
+            return
         }
+        super.keyDown(with: event)
     }
 }

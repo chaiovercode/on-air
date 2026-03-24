@@ -1,5 +1,18 @@
 import SwiftUI
 
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        self.init(
+            red: Double((int >> 16) & 0xFF) / 255,
+            green: Double((int >> 8) & 0xFF) / 255,
+            blue: Double(int & 0xFF) / 255
+        )
+    }
+}
+
 struct MeetingRowView: View {
 
     let event: CalendarEvent
@@ -11,9 +24,7 @@ struct MeetingRowView: View {
     @State private var showDetail = false
 
     private var borderColor: Color {
-        if isInProgress { return .green }
-        if isNext { return accentRed }
-        return .secondary.opacity(0.3)
+        Color(hex: event.calendarColorHex)
     }
 
     private var timeBadgeText: String? {
@@ -40,11 +51,30 @@ struct MeetingRowView: View {
             showDetail = true
         } label: {
             HStack(alignment: .top, spacing: 0) {
-                // Colored left border (Dot-style)
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(borderColor)
+                // Colored left border — green gradient for in-progress
+                if isInProgress {
+                    let total = event.endDate.timeIntervalSince(event.startDate)
+                    let elapsed = Date().timeIntervalSince(event.startDate)
+                    let progress = min(max(elapsed / total, 0), 1)
+
+                    GeometryReader { geo in
+                        VStack(spacing: 0) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color.green)
+                                .frame(height: geo.size.height * progress)
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color.green.opacity(0.2))
+                                .frame(height: geo.size.height * (1 - progress))
+                        }
+                    }
                     .frame(width: 3)
                     .padding(.vertical, 2)
+                } else {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(borderColor)
+                        .frame(width: 3)
+                        .padding(.vertical, 2)
+                }
 
                 VStack(alignment: .leading, spacing: 4) {
                     // Time range row
@@ -72,7 +102,7 @@ struct MeetingRowView: View {
                     // Title row
                     HStack(spacing: 8) {
                         Text(event.title)
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.system(size: 15, weight: .medium))
                             .lineLimit(1)
 
                         Spacer()
@@ -106,8 +136,39 @@ struct MeetingRowView: View {
             .padding(.vertical, 8)
             .padding(.horizontal, 8)
             .background(
+                GeometryReader { geo in
+                    if isInProgress {
+                        let total = event.endDate.timeIntervalSince(event.startDate)
+                        let elapsed = Date().timeIntervalSince(event.startDate)
+                        let progress = min(max(elapsed / total, 0), 1)
+
+                        ZStack(alignment: .leading) {
+                            // Base
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.green.opacity(0.04))
+
+                            // Green progress fill
+                            Rectangle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.green.opacity(0.20), Color.green.opacity(0.10)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: geo.size.width * progress)
+                        }
+                    } else if isNext {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(accentRed.opacity(0.06))
+                    }
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                // Green border for in-progress
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(isInProgress ? .green.opacity(0.08) : isNext ? accentRed.opacity(0.06) : .clear)
+                    .strokeBorder(isInProgress ? Color.green.opacity(0.35) : .clear, lineWidth: 0.5)
             )
             .opacity(isPast ? 0.4 : 1.0)
             .padding(.vertical, 2)

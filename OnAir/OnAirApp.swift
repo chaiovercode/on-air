@@ -7,8 +7,7 @@ struct OnAirApp: App {
 
     var body: some Scene {
         Settings {
-            SettingsView(appState: appDelegate.appState, settings: appDelegate.appState.settings)
-                .frame(width: 420, height: 500)
+            EmptyView()
         }
     }
 }
@@ -25,6 +24,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             await appState.start()
         }
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        return .terminateNow
     }
 
     func applicationWillTerminate(_ notification: Notification) {

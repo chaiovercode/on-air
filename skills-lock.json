@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "clearshot": {
+      "source": "udayanwalvekar/clearshot",
+      "sourceType": "github",
+      "computedHash": "3c06cbe4b6ebb9ebab93dd7067f7c47528b0f1fb490bc9d522509bdf982af274"
+    }
+  }
+}
