@@ -597,100 +597,30 @@ struct SettingsView: View {
     private var calendarsTab: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
-                // Help section
-                Section("Help") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(alignment: .top, spacing: 10) {
-                            Text("1")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(Color(hex: settings.accentColorHex))
-                                .frame(width: 22, height: 22)
-                                .background(Circle().fill(Color(hex: settings.accentColorHex).opacity(0.15)))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("macOS Calendar syncs your accounts")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(P.text1)
-                                Text("Google, Outlook, iCloud, and Exchange accounts sync to the built-in Calendar app.")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(P.text3)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-
-                        HStack(alignment: .top, spacing: 10) {
-                            Text("2")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(Color(hex: settings.accentColorHex))
-                                .frame(width: 22, height: 22)
-                                .background(Circle().fill(Color(hex: settings.accentColorHex).opacity(0.15)))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("OnAir reads from macOS Calendar")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(P.text1)
-                                Text("We display events from calendars you've enabled. We never store your data.")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(P.text3)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-
-                        HStack(alignment: .top, spacing: 10) {
-                            Text("3")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(Color(hex: settings.accentColorHex))
-                                .frame(width: 22, height: 22)
-                                .background(Circle().fill(Color(hex: settings.accentColorHex).opacity(0.15)))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Add accounts in System Settings")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(P.text1)
-                                Text("Go to Internet Accounts to connect Google, Outlook, or other providers.")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(P.text3)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-
+                // Help — compact collapsible
+                Section("Setup") {
+                    iconRow("questionmark.circle", "Where are my events?", sub: "OnAir reads from macOS Calendar. Add accounts in System Settings.") {
                         Button {
                             if let url = URL(string: "x-apple.systempreferences:com.apple.Internet-Accounts") {
                                 NSWorkspace.shared.open(url)
                             }
                         } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "gear")
-                                    .font(.system(size: 11, weight: .medium))
-                                Text("Open Internet Accounts")
-                                    .font(.system(size: 12, weight: .semibold))
-                            }
-                            .foregroundStyle(P.bg)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color(hex: settings.accentColorHex).opacity(0.85))
-                            )
+                            Text("Open")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .fill(Color(hex: settings.accentColorHex).opacity(0.7))
+                                )
                         }
                         .buttonStyle(.plain)
-                        .padding(.top, 4)
                     }
-                    .padding(16)
                 }
 
-                Section("Focus Blocks") {
-                    HStack(spacing: 12) {
-                        Image(systemName: "calendar.badge.plus")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(Color(hex: settings.accentColorHex).opacity(0.7))
-                            .frame(width: 20, alignment: .center)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("Calendar for focus blocks")
-                                .font(.system(size: 13))
-                                .foregroundStyle(P.text1)
-                            Text("Where booked focus blocks are created")
-                                .font(.system(size: 10))
-                                .foregroundStyle(P.text3)
-                        }
-                        Spacer()
+                Section("Options") {
+                    iconRow("calendar.badge.plus", "Focus block calendar", sub: "Where focus blocks are created") {
                         let cals = appState.calendarService.availableCalendars
                         let current = cals.first { $0.id == settings.focusCalendarId }?.title ?? "Default"
                         Menu {
@@ -704,56 +634,38 @@ struct SettingsView: View {
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(P.text1)
                                 .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
+                                .padding(.vertical, 5)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                        .fill(.white.opacity(0.06))
+                                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                        .fill(.white.opacity(0.05))
                                 )
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                        .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+                                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                        .strokeBorder(.white.opacity(0.07), lineWidth: 0.5)
                                 )
                         }
                         .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                }
-
-                Section("Long Weekends") {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Show long weekends")
-                                .font(.system(size: 13))
-                                .foregroundStyle(P.text1)
-                            Text("Highlight extended weekends around holidays in the calendar grid")
-                                .font(.system(size: 11))
-                                .foregroundStyle(P.text3)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer()
+                    iconRow("sparkles", "Long weekends", sub: "Highlight extended weekends around holidays") {
                         Toggle("", isOn: $settings.showLongWeekends)
                             .toggleStyle(.switch)
                             .controlSize(.small)
                             .tint(Color(hex: settings.accentColorHex))
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
 
                     if settings.showLongWeekends && !appState.calendarService.availableCalendars.isEmpty {
                         HStack(spacing: 6) {
-                            Image(systemName: "diamond.fill")
-                                .font(.system(size: 5))
-                                .foregroundStyle(Color(hex: settings.accentColorHex).opacity(0.7))
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 9))
+                                .foregroundStyle(P.text3)
                             Text("Mark holiday calendars below to detect long weekends")
-                                .font(.system(size: 11))
+                                .font(.system(size: 10))
                                 .foregroundStyle(P.text3)
                         }
                         .padding(.horizontal, 16)
-                        .padding(.bottom, 8)
+                        .padding(.vertical, 8)
                     }
 
-                    // Upcoming holiday list (dismiss individual holidays)
                     if settings.showLongWeekends && !settings.holidayCalendarIds.isEmpty {
                         upcomingHolidaysList
                     }
@@ -959,42 +871,103 @@ struct SettingsView: View {
     private var accentColor: Color { Color(hex: settings.accentColorHex) }
 
     private var statsTab: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 0) {
-                if appState.statsService.records.isEmpty {
-                    // Empty state
-                    VStack(spacing: 16) {
-                        Spacer().frame(height: 80)
-                        ZStack {
-                            Circle()
-                                .fill(accentColor.opacity(0.08))
-                                .frame(width: 80, height: 80)
-                                .blur(radius: 20)
-                            Image(systemName: "chart.bar.xaxis.ascending")
-                                .font(.system(size: 28, weight: .light))
-                                .foregroundStyle(P.text3)
-                        }
-                        Text("No stats yet")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(P.text1)
-                        Text("Attend a meeting and your\nstats will appear here.")
-                            .font(.system(size: 12))
-                            .foregroundStyle(P.text2)
-                            .multilineTextAlignment(.center)
-                            .lineSpacing(3)
+        let stats = appState.statsService
+        let focus = appState.focusService
+        let hasData = !stats.records.isEmpty || focus.totalSessions > 0
+
+        return ScrollView(.vertical, showsIndicators: false) {
+            if !hasData {
+                VStack(spacing: 16) {
+                    Spacer().frame(height: 80)
+                    ZStack {
+                        Circle().fill(accentColor.opacity(0.08)).frame(width: 80, height: 80).blur(radius: 20)
+                        Image(systemName: "chart.bar.xaxis.ascending")
+                            .font(.system(size: 28, weight: .light)).foregroundStyle(P.text3)
                     }
-                    .frame(maxWidth: .infinity)
-                } else {
-                    Section("Overview") {
-                        StatRow("Meetings this week", value: "\(appState.statsService.meetingsThisWeek)", color: accentColor)
-                        StatRow("Meetings this month", value: "\(appState.statsService.meetingsThisMonth)", color: Color(red: 0.35, green: 0.55, blue: 1.0))
-                        StatRow("Total meetings", value: "\(appState.statsService.totalMeetings)", color: P.text2)
-                        StatRow("Total time in meetings", value: appState.statsService.totalHoursDisplay, color: Color(red: 1.0, green: 0.6, blue: 0.2))
+                    Text("No stats yet").font(.system(size: 15, weight: .semibold)).foregroundStyle(P.text1)
+                    Text("Attend a meeting or start a\nfocus session to see stats.")
+                        .font(.system(size: 12)).foregroundStyle(P.text2)
+                        .multilineTextAlignment(.center).lineSpacing(3)
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Hero stats — big numbers
+                    HStack(spacing: 0) {
+                        statCard(
+                            value: "\(stats.meetingsThisWeek)",
+                            label: "Meetings\nthis week",
+                            icon: "calendar",
+                            color: accentColor
+                        )
+                        statCard(
+                            value: stats.totalHoursDisplay,
+                            label: "Time in\nmeetings",
+                            icon: "clock",
+                            color: Color(red: 1.0, green: 0.6, blue: 0.2)
+                        )
+                        statCard(
+                            value: "\(focus.todayFocusMinutes)m",
+                            label: "Focused\ntoday",
+                            icon: "brain.head.profile",
+                            color: .green
+                        )
+                    }
+                    .padding(.top, 12)
+                    .padding(.horizontal, 24)
+
+                    // Focus stats
+                    if focus.totalSessions > 0 {
+                        Section("Focus") {
+                            StatRow("Sessions this week", value: "\(focusSessionsThisWeek)", color: .green)
+                            StatRow("Total focus time", value: formatMinutes(focus.weekFocusMinutes), color: .green)
+                            StatRow("Completion rate", value: "\(Int(focus.completionRate * 100))%", color: focus.completionRate >= 0.7 ? .green : .orange)
+                        }
                     }
 
-                    if !appState.statsService.busiestDays.isEmpty {
+                    // Meeting overview
+                    if !stats.records.isEmpty {
+                        Section("Meetings") {
+                            StatRow("This week", value: "\(stats.meetingsThisWeek)", color: accentColor)
+                            StatRow("This month", value: "\(stats.meetingsThisMonth)", color: accentColor)
+                            StatRow("All time", value: "\(stats.totalMeetings)", color: P.text2)
+                        }
+
+                        // Wellness
+                        Section("Wellness") {
+                            let wellnessData = weekWellness
+                            HStack(spacing: 4) {
+                                ForEach(wellnessData, id: \.day) { item in
+                                    VStack(spacing: 4) {
+                                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                            .fill(item.color.opacity(0.6))
+                                            .frame(height: max(CGFloat(item.hours) / 8.0 * 40, 4))
+                                        Text(item.day)
+                                            .font(.system(size: 9, weight: .medium))
+                                            .foregroundStyle(P.text3)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                }
+                            }
+                            .frame(height: 60, alignment: .bottom)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+
+                            HStack(spacing: 12) {
+                                wellnessLegend(color: .green, label: "Light (< 2h)")
+                                wellnessLegend(color: .yellow, label: "Moderate")
+                                wellnessLegend(color: .orange, label: "Busy")
+                                wellnessLegend(color: .red, label: "Heavy (6h+)")
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 10)
+                        }
+                    }
+
+                    // Busiest days
+                    if !stats.busiestDays.isEmpty {
                         Section("Busiest Days") {
-                            ForEach(appState.statsService.busiestDays.prefix(5), id: \.dayOfWeek) { day in
+                            ForEach(stats.busiestDays.prefix(5), id: \.dayOfWeek) { day in
                                 Row(String(day.dayOfWeek.prefix(3))) {
                                     BarIndicator(value: day.percentage, color: accentColor)
                                     Text("\(Int(day.percentage))%")
@@ -1006,9 +979,10 @@ struct SettingsView: View {
                         }
                     }
 
-                    if !appState.statsService.platformBreakdown.isEmpty {
+                    // Platforms
+                    if !stats.platformBreakdown.isEmpty {
                         Section("Platforms") {
-                            ForEach(appState.statsService.platformBreakdown, id: \.platform) { item in
+                            ForEach(stats.platformBreakdown, id: \.platform) { item in
                                 Row(item.platform) {
                                     BarIndicator(value: item.percentage, color: Color(red: 0.35, green: 0.55, blue: 1.0))
                                     Text("\(Int(item.percentage))%")
@@ -1020,9 +994,10 @@ struct SettingsView: View {
                         }
                     }
 
-                    if !appState.statsService.topMeetings.isEmpty {
+                    // Recurring
+                    if !stats.topMeetings.isEmpty {
                         Section("Recurring") {
-                            ForEach(Array(appState.statsService.topMeetings.enumerated()), id: \.element.title) { i, item in
+                            ForEach(Array(stats.topMeetings.enumerated()), id: \.element.title) { i, item in
                                 Row(item.title) {
                                     Text("\(item.count)×")
                                         .font(.system(size: 13, weight: .bold, design: .rounded))
@@ -1032,11 +1007,88 @@ struct SettingsView: View {
                         }
                     }
                 }
+                .frame(maxWidth: 520)
+                .padding(.horizontal, 24).padding(.vertical, 8)
             }
-            .frame(maxWidth: 520)
-            .padding(.horizontal, 24).padding(.vertical, 8)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Stats Helpers
+
+    private func statCard(value: String, label: String, icon: String, color: Color) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 13))
+                .foregroundStyle(color.opacity(0.6))
+            Text(value)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(P.text1)
+                .monospacedDigit()
+            Text(label)
+                .font(.system(size: 10))
+                .foregroundStyle(P.text3)
+                .multilineTextAlignment(.center)
+                .lineSpacing(2)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(color.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(color.opacity(0.08), lineWidth: 0.5)
+        )
+        .padding(.horizontal, 3)
+    }
+
+    private func wellnessLegend(color: Color, label: String) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color.opacity(0.6)).frame(width: 6, height: 6)
+            Text(label).font(.system(size: 8)).foregroundStyle(P.text3)
+        }
+    }
+
+    private var focusSessionsThisWeek: Int {
+        let cal = Calendar.current
+        let weekAgo = cal.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        return appState.focusService.sessions.filter { $0.date > weekAgo }.count
+    }
+
+    private func formatMinutes(_ mins: Int) -> String {
+        if mins >= 60 {
+            let h = mins / 60
+            let m = mins % 60
+            return m > 0 ? "\(h)h \(m)m" : "\(h)h"
+        }
+        return "\(mins)m"
+    }
+
+    private struct WellnessDay {
+        let day: String
+        let hours: Double
+        let color: Color
+    }
+
+    private var weekWellness: [WellnessDay] {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let dayNames = ["M", "T", "W", "T", "F", "S", "S"]
+
+        return (0..<7).map { offset in
+            let dayOffset = offset - (cal.component(.weekday, from: today) + 5) % 7
+            let date = cal.date(byAdding: .day, value: dayOffset, to: today)!
+            let dayRecords = appState.statsService.records.filter { cal.isDate($0.date, inSameDayAs: date) }
+            let hours = Double(dayRecords.reduce(0) { $0 + $1.durationMinutes }) / 60.0
+            let color: Color
+            if hours >= 6 { color = .red }
+            else if hours >= 4 { color = .orange }
+            else if hours >= 2 { color = .yellow }
+            else { color = .green }
+            return WellnessDay(day: dayNames[offset], hours: hours, color: color)
+        }
     }
 
     // MARK: - About Tab

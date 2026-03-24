@@ -385,19 +385,18 @@ struct PopoverView: View {
         appState.todayEvents.reduce(0) { $0 + $1.durationMinutes }
     }
 
-    private var fatigueLevel: (color: Color, label: String) {
+    private var fatigueColor: Color {
         let hours = Double(totalMeetingMinutes) / 60.0
-        if hours >= 6 { return (.red, "Heavy day") }
-        if hours >= 4 { return (.orange, "Busy") }
-        if hours >= 2 { return (.yellow, "Moderate") }
-        return (.green, "Light")
+        if hours >= 6 { return .red }
+        if hours >= 4 { return .orange }
+        if hours >= 2 { return .yellow }
+        return .green
     }
 
     private var fatigueMeter: some View {
         let total = totalMeetingMinutes
-        let maxMins = 8 * 60 // 8 hour workday
+        let maxMins = 8 * 60
         let progress = min(Double(total) / Double(maxMins), 1.0)
-        let level = fatigueLevel
         let hours = total / 60
         let mins = total % 60
 
@@ -408,7 +407,7 @@ struct PopoverView: View {
                     RoundedRectangle(cornerRadius: 2)
                         .fill(.white.opacity(0.06))
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(level.color.opacity(0.5))
+                        .fill(fatigueColor.opacity(0.5))
                         .frame(width: geo.size.width * progress)
                 }
             }
@@ -417,7 +416,7 @@ struct PopoverView: View {
             // Label
             Text(hours > 0 ? "\(hours)h\(mins > 0 ? " \(mins)m" : "") in meetings" : "\(mins)m in meetings")
                 .font(.system(size: 9))
-                .foregroundStyle(level.color.opacity(0.6))
+                .foregroundStyle(fatigueColor.opacity(0.6))
                 .fixedSize()
         }
         .padding(.top, 4)

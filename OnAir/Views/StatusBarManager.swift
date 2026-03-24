@@ -236,6 +236,7 @@ final class StatusBarManager: NSObject {
 
         NotificationCenter.default.addObserver(forName: .openSettings, object: nil, queue: nil) { [weak self] _ in
             MainActor.assumeIsolated {
+                self?.hidePopover()
                 self?.statusItem?.menu?.cancelTracking()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     self?.showSettings()
@@ -264,9 +265,10 @@ final class StatusBarManager: NSObject {
         window.titleVisibility = .visible
         window.backgroundColor = bgColor
         window.isMovableByWindowBackground = true
-        window.center()
+        window.setContentSize(NSSize(width: 880, height: 700))
         window.isReleasedWhenClosed = false
         window.hasShadow = true
+        window.center()
         settingsWindow = window
 
         window.makeKeyAndOrderFront(nil)
