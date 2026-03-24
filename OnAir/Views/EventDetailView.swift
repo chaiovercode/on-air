@@ -85,10 +85,7 @@ struct EventDetailView: View {
             // Action buttons
             HStack(spacing: 8) {
                 actionButton(icon: "pencil", label: "Edit") {
-                    // Open in Calendar.app
-                    if let url = URL(string: "x-apple-calevent://\(event.id)") {
-                        NSWorkspace.shared.open(url)
-                    }
+                    NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Calendar.app"))
                 }
 
                 if let link = event.meetingLink {
