@@ -10,300 +10,236 @@ struct NewEventView: View {
     @State private var meetingLink = ""
     @State private var notes = ""
     @State private var duration: TimeInterval = 1800
-    @State private var selectedCalendarId: String?
-    @State private var showCalendarPicker = false
+    @State private var selectedCalendarId: String = ""
+    @State private var showCalPicker = false
     @FocusState private var titleFocused: Bool
 
     private let accentPurple = Color(red: 0.6, green: 0.3, blue: 0.7)
+    private let store = EKEventStore()
 
-    // NLP-detected date from title
+    // NLP
     private var detectedDate: Date? {
         guard !title.isEmpty else { return nil }
-        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
-        let range = NSRange(title.startIndex..., in: title)
-        let matches = detector?.matches(in: title, options: [], range: range) ?? []
-        return matches.first?.date
+        let d = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
+        return d?.matches(in: title, options: [], range: NSRange(title.startIndex..., in: title)).first?.date
     }
-
-    private var eventDate: Date {
-        detectedDate ?? Date().addingTimeInterval(1800)
-    }
-
-    private var detectedDateText: String {
-        if let date = detectedDate {
-            let f = DateFormatter()
-            f.dateFormat = "EEE, d MMM 'at' h:mm a"
-            return f.string(from: date)
-        }
-        return "No date detected — defaults to now"
-    }
+    private var eventDate: Date { detectedDate ?? Date().addingTimeInterval(1800) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             HStack {
                 Text("New Event")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.85))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.9))
                 Spacer()
                 Button { isPresented = false } label: {
                     Text("ESC")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.4))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                .fill(.white.opacity(0.08))
-                        )
+                        .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(.white.opacity(0.07)))
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.bottom, 14)
+            .padding(.bottom, 16)
 
-            // Title — NLP enabled
-            TextField("Try: Team sync every Monday 10am", text: $title)
+            // Title
+            TextField("Try: Team sync tomorrow 3pm", text: $title)
                 .textFieldStyle(.plain)
-                .font(.system(size: 15))
-                .foregroundStyle(.white.opacity(0.85))
+                .font(.system(size: 16))
+                .foregroundStyle(.white.opacity(0.9))
                 .focused($titleFocused)
                 .padding(.bottom, 6)
 
-            // Detected date feedback
-            HStack(spacing: 6) {
+            // Date feedback
+            HStack(spacing: 5) {
                 Image(systemName: detectedDate != nil ? "calendar.badge.checkmark" : "calendar")
                     .font(.system(size: 10))
                     .foregroundStyle(detectedDate != nil ? .green.opacity(0.7) : .white.opacity(0.2))
-                Text(detectedDateText)
+                Text(dateText)
                     .font(.system(size: 11))
-                    .foregroundStyle(detectedDate != nil ? .green.opacity(0.6) : .white.opacity(0.25))
+                    .foregroundStyle(detectedDate != nil ? .green.opacity(0.6) : .white.opacity(0.2))
             }
-            .padding(.bottom, 12)
+            .padding(.bottom, 14)
 
-            // Duration
+            // Duration pills
             HStack(spacing: 8) {
                 Image(systemName: "clock")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.3))
+                    .font(.system(size: 12)).foregroundStyle(.white.opacity(0.25))
                     .frame(width: 18)
-                HStack(spacing: 2) {
-                    ForEach([("30m", 1800.0), ("1h", 3600.0), ("1.5h", 5400.0), ("2h", 7200.0)], id: \.0) { label, secs in
-                        Button {
-                            duration = secs
-                        } label: {
-                            Text(label)
-                                .font(.system(size: 11, weight: duration == secs ? .bold : .regular))
-                                .foregroundStyle(duration == secs ? .white : .white.opacity(0.35))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                        .fill(duration == secs ? .white.opacity(0.1) : .clear)
-                                )
-                        }
-                        .buttonStyle(.plain)
+                HStack(spacing: 3) {
+                    ForEach([(l: "30m", s: 1800.0), (l: "1h", s: 3600.0), (l: "1.5h", s: 5400.0), (l: "2h", s: 7200.0)], id: \.l) { d in
+                        Button { duration = d.s } label: {
+                            Text(d.l)
+                                .font(.system(size: 11, weight: duration == d.s ? .bold : .regular))
+                                .foregroundStyle(duration == d.s ? .white : .white.opacity(0.3))
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .background(RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                    .fill(duration == d.s ? .white.opacity(0.1) : .clear))
+                        }.buttonStyle(.plain)
                     }
                 }
             }
-            .padding(.bottom, 8)
+            .padding(.bottom, 10)
 
             // Fields
-            VStack(alignment: .leading, spacing: 8) {
-                fieldRow("location", placeholder: "Add a location", text: $location)
-                fieldRow("link", placeholder: "Meeting link or URL", text: $meetingLink)
-
-                HStack(spacing: 10) {
-                    Image(systemName: "bell")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.white.opacity(0.3))
-                        .frame(width: 20)
-                    Text("5m before")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.85))
+            VStack(alignment: .leading, spacing: 10) {
+                field("location", "Add a location", $location)
+                field("link", "Meeting link or URL", $meetingLink)
+                HStack(spacing: 8) {
+                    Image(systemName: "bell").font(.system(size: 12)).foregroundStyle(.white.opacity(0.25)).frame(width: 18)
+                    Text("5m before").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.85))
                 }
-
-                fieldRow("doc.text", placeholder: "Notes, agenda, or prep", text: $notes)
+                field("doc.text", "Notes, agenda, or prep", $notes)
             }
 
-            Spacer().frame(height: 14)
+            Spacer()
 
-            // Calendar picker
-            if showCalendarPicker {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(availableCalendars, id: \.calendarIdentifier) { cal in
-                        Button {
-                            selectedCalendarId = cal.calendarIdentifier
-                            showCalendarPicker = false
-                        } label: {
-                            HStack(spacing: 8) {
-                                Circle()
-                                    .fill(Color(cgColor: cal.cgColor))
-                                    .frame(width: 8, height: 8)
-                                Text(shortName(cal.title))
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(selectedCalendarId == cal.calendarIdentifier ? accentPurple : .white.opacity(0.7))
-                                Spacer()
-                                if selectedCalendarId == cal.calendarIdentifier || (selectedCalendarId == nil && cal == EKEventStore().defaultCalendarForNewEvents) {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(accentPurple)
-                                }
-                            }
-                            .padding(.vertical, 8)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.bottom, 10)
-            }
+            // Divider
+            Color.white.opacity(0.06).frame(height: 0.5).padding(.bottom, 12)
 
-            // Footer
-            Color.white.opacity(0.06).frame(height: 0.5).padding(.bottom, 10)
-
+            // Footer: calendar + create
             HStack {
-                Button {
-                    showCalendarPicker.toggle()
-                } label: {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(selectedCalendarColor)
-                            .frame(width: 8, height: 8)
-                        Text(selectedCalendarShortName)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.white.opacity(0.5))
-                            .lineLimit(1)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 8))
-                            .foregroundStyle(.white.opacity(0.3))
-                    }
-                }
-                .buttonStyle(.plain)
-                .frame(maxWidth: 120, alignment: .leading)
+                // Custom dropdown
+                calendarDropdown
 
                 Spacer()
 
                 Button { createEvent() } label: {
                     HStack(spacing: 4) {
-                        Text("Create")
-                            .font(.system(size: 13, weight: .semibold))
-                        Text("⌘↵")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.white.opacity(0.7))
+                        Text("Create").font(.system(size: 13, weight: .semibold))
+                        Text("⌘↵").font(.system(size: 11)).foregroundStyle(.white.opacity(0.6))
                     }
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(title.isEmpty ? accentPurple.opacity(0.3) : accentPurple)
-                    )
+                    .padding(.horizontal, 18).padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(title.isEmpty ? accentPurple.opacity(0.3) : accentPurple))
                 }
                 .buttonStyle(.plain)
                 .disabled(title.isEmpty)
             }
         }
-        .padding(18)
-        .onAppear { titleFocused = true }
-        .onExitCommand { isPresented = false }
-    }
-
-    // MARK: - Components
-
-    private func fieldRow(_ icon: String, placeholder: String, text: Binding<String>) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 13))
-                .foregroundStyle(.white.opacity(0.3))
-                .frame(width: 20)
-            TextField(placeholder, text: text)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
+        .padding(20)
+        .onAppear {
+            titleFocused = true
+            if selectedCalendarId.isEmpty {
+                selectedCalendarId = store.defaultCalendarForNewEvents?.calendarIdentifier ?? ""
+            }
         }
     }
 
-    private var availableCalendars: [EKCalendar] {
-        EKEventStore().calendars(for: .event).filter { $0.allowsContentModifications }
-    }
+    // MARK: - Calendar Dropdown
 
-    private var selectedCalendar: EKCalendar? {
-        let store = EKEventStore()
-        if let id = selectedCalendarId {
-            return store.calendars(for: .event).first { $0.calendarIdentifier == id }
+    private var calendarDropdown: some View {
+        // Selected calendar button
+        Button { showCalPicker.toggle() } label: {
+            HStack(spacing: 8) {
+                Circle().fill(currentCalColor).frame(width: 8, height: 8)
+                Text(shortName(currentCal?.title ?? "Calendar"))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .lineLimit(1)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 8)).foregroundStyle(.white.opacity(0.3))
+            }
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.white.opacity(0.06)))
+            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(.white.opacity(0.08), lineWidth: 0.5))
         }
-        return store.defaultCalendarForNewEvents
-    }
-
-    private var selectedCalendarShortName: String {
-        shortName(selectedCalendar?.title ?? "Calendar")
-    }
-
-    private var selectedCalendarColor: Color {
-        if let cal = selectedCalendar {
-            return Color(cgColor: cal.cgColor)
+        .buttonStyle(.plain)
+        .overlay(alignment: .bottomLeading) {
+            if showCalPicker {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(writableCalendars, id: \.calendarIdentifier) { cal in
+                        Button {
+                            selectedCalendarId = cal.calendarIdentifier
+                            showCalPicker = false
+                        } label: {
+                            HStack(spacing: 8) {
+                                Circle().fill(Color(cgColor: cal.cgColor)).frame(width: 7, height: 7)
+                                Text(shortName(cal.title))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(cal.calendarIdentifier == selectedCalendarId ? accentPurple : .white.opacity(0.7))
+                                Spacer()
+                                if cal.calendarIdentifier == selectedCalendarId {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundStyle(accentPurple)
+                                }
+                            }
+                            .padding(.horizontal, 10).padding(.vertical, 7)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .frame(minWidth: 180)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(red: 0.14, green: 0.14, blue: 0.15)))
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(.white.opacity(0.08), lineWidth: 0.5))
+                .offset(x: 5, y: -4)
+                .alignmentGuide(.bottom) { d in d[.bottom] + d.height + 4 }
+            }
         }
+    }
+
+    // MARK: - Helpers
+
+    private var dateText: String {
+        if let d = detectedDate {
+            let f = DateFormatter(); f.dateFormat = "EEE, d MMM 'at' h:mm a"
+            return f.string(from: d)
+        }
+        return "No date detected — defaults to now"
+    }
+
+    private var writableCalendars: [EKCalendar] {
+        store.calendars(for: .event).filter { $0.allowsContentModifications }
+    }
+
+    private var currentCal: EKCalendar? {
+        writableCalendars.first { $0.calendarIdentifier == selectedCalendarId } ?? store.defaultCalendarForNewEvents
+    }
+
+    private var currentCalColor: Color {
+        if let c = currentCal { return Color(cgColor: c.cgColor) }
         return accentPurple
     }
 
     private func shortName(_ name: String) -> String {
-        if name.contains("@") { return String(name.prefix(while: { $0 != "@" })) }
-        return name
+        name.contains("@") ? String(name.prefix(while: { $0 != "@" })) : name
+    }
+
+    private func field(_ icon: String, _ placeholder: String, _ text: Binding<String>) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon).font(.system(size: 12)).foregroundStyle(.white.opacity(0.25)).frame(width: 18)
+            TextField(placeholder, text: text).textFieldStyle(.plain).font(.system(size: 13))
+        }
     }
 
     // MARK: - Create
 
     private func createEvent() {
         guard !title.isEmpty else { return }
-
-        let store = EKEventStore()
         let ekEvent = EKEvent(eventStore: store)
-
-        // Strip date text from title for cleaner event name
-        let cleanTitle = stripDateFromTitle(title)
-        ekEvent.title = cleanTitle.isEmpty ? title : cleanTitle
-
+        let clean = stripDate(title)
+        ekEvent.title = clean.isEmpty ? title : clean
         ekEvent.startDate = eventDate
         ekEvent.endDate = eventDate.addingTimeInterval(duration)
         if !location.isEmpty { ekEvent.location = location }
-
-        var eventNotes = notes
-        if !meetingLink.isEmpty {
-            eventNotes = eventNotes.isEmpty ? meetingLink : "\(eventNotes)\n\(meetingLink)"
-        }
-        if !eventNotes.isEmpty { ekEvent.notes = eventNotes }
-
-        // Add 5-minute alarm
+        var n = notes
+        if !meetingLink.isEmpty { n = n.isEmpty ? meetingLink : "\(n)\n\(meetingLink)" }
+        if !n.isEmpty { ekEvent.notes = n }
         ekEvent.addAlarm(EKAlarm(relativeOffset: -300))
-        if let id = selectedCalendarId,
-           let cal = store.calendars(for: .event).first(where: { $0.calendarIdentifier == id }) {
-            ekEvent.calendar = cal
-        } else {
-            ekEvent.calendar = store.defaultCalendarForNewEvents
-        }
-
-        do {
-            try store.save(ekEvent, span: .thisEvent)
-            appState.refreshEvents()
-            isPresented = false
-        } catch {
-            // Silent fail
-        }
+        ekEvent.calendar = currentCal ?? store.defaultCalendarForNewEvents
+        do { try store.save(ekEvent, span: .thisEvent); appState.refreshEvents(); isPresented = false } catch {}
     }
 
-    private func stripDateFromTitle(_ text: String) -> String {
-        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
-        let range = NSRange(text.startIndex..., in: text)
-        guard let matches = detector?.matches(in: text, options: [], range: range),
-              let match = matches.first else { return text }
-
-        var result = text
-        if let swiftRange = Range(match.range, in: text) {
-            result = text.replacingCharacters(in: swiftRange, with: "")
-        }
-        // Clean up leftover prepositions and whitespace
-        return result
-            .replacingOccurrences(of: "  ", with: " ")
-            .replacingOccurrences(of: " at ", with: " ")
-            .replacingOccurrences(of: " on ", with: " ")
-            .trimmingCharacters(in: .whitespaces)
+    private func stripDate(_ t: String) -> String {
+        let d = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
+        guard let m = d?.matches(in: t, options: [], range: NSRange(t.startIndex..., in: t)).first,
+              let r = Range(m.range, in: t) else { return t }
+        return t.replacingCharacters(in: r, with: "").replacingOccurrences(of: "  ", with: " ").trimmingCharacters(in: .whitespaces)
     }
 }

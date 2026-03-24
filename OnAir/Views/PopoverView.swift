@@ -7,8 +7,6 @@ struct PopoverView: View {
     @State private var displayedMonth = Date()
     @State private var selectedDate: Date? = nil
     @State private var calendarCollapsed = false
-    @State private var showSearch = false
-    @State private var showNewEvent = false
 
     private let accentRed = Color(red: 0.9, green: 0.25, blue: 0.2)
 
@@ -30,12 +28,6 @@ struct PopoverView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Arrow notch pointing up
-            Triangle()
-                .fill(Color(red: 0.12, green: 0.11, blue: 0.10))
-                .frame(width: 16, height: 8)
-                .padding(.top, 2)
-
             // Top card: header + greeting
             VStack(spacing: 0) {
                 headerToolbar
@@ -78,8 +70,7 @@ struct PopoverView: View {
 
                         // Agenda
                         AgendaView(appState: appState, selectedDate: selectedDate) {
-                            showSearch = false
-                            showNewEvent.toggle()
+                            NotificationCenter.default.post(name: .toggleNewEvent, object: nil)
                         }
                         .padding(.horizontal, 14)
                         .padding(.bottom, 12)
@@ -95,51 +86,12 @@ struct PopoverView: View {
             ZStack {
                 Color(red: 0.12, green: 0.11, blue: 0.10)
                 VStack {
-                    LinearGradient(
-                        stops: topGradientStops,
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 160)
+                    LinearGradient(stops: topGradientStops, startPoint: .top, endPoint: .bottom)
+                        .frame(height: 160)
                     Spacer()
                 }
             }
         )
-        .overlay {
-            if showSearch || showNewEvent {
-                Color.black.opacity(0.4)
-                    .onTapGesture { showSearch = false; showNewEvent = false }
-            }
-        }
-        .overlay(alignment: .top) {
-            if showSearch {
-                SearchView(appState: appState, isPresented: $showSearch)
-                    .padding(.horizontal, 2)
-                    .frame(maxHeight: 480)
-                    .background(Color(red: 0.10, green: 0.10, blue: 0.10))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
-                    )
-                    .shadow(color: .black.opacity(0.6), radius: 24, y: 8)
-                    .padding(.top, 100)
-            }
-        }
-        .overlay(alignment: .top) {
-            if showNewEvent {
-                NewEventView(appState: appState, isPresented: $showNewEvent)
-                    .padding(.horizontal, 2)
-                    .background(Color(red: 0.10, green: 0.10, blue: 0.10))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5)
-                    )
-                    .shadow(color: .black.opacity(0.6), radius: 24, y: 8)
-                    .padding(.top, 160)
-            }
-        }
     }
 
     // MARK: - Header Toolbar (Dot-style)
@@ -165,12 +117,10 @@ struct PopoverView: View {
             // Action buttons
             HStack(spacing: 2) {
                 headerButton(icon: "plus", help: "New Event ⌘N") {
-                    showSearch = false
-                    showNewEvent.toggle()
+                    NotificationCenter.default.post(name: .toggleNewEvent, object: nil)
                 }
                 headerButton(icon: "magnifyingglass", help: "Search ⌘F") {
-                    showNewEvent = false
-                    showSearch.toggle()
+                    NotificationCenter.default.post(name: .toggleSearch, object: nil)
                 }
                 headerButton(icon: calendarCollapsed ? "chevron.down" : "chevron.up", help: "Toggle Calendar") {
                     withAnimation(.easeInOut(duration: 0.2)) {
@@ -178,8 +128,7 @@ struct PopoverView: View {
                     }
                 }
                 headerButton(icon: "gearshape", help: "Settings ⌘,") {
-                    showSearch = false
-                    showNewEvent = false
+                    NotificationCenter.default.post(name: .dismissOverlays, object: nil)
                     openSettings()
                 }
             }
@@ -371,15 +320,3 @@ struct PopoverView: View {
     }
 }
 
-// MARK: - Arrow Shape
-
-private struct Triangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.midX, y: 0))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-        path.closeSubpath()
-        return path
-    }
-}
