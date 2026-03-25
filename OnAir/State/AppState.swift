@@ -14,6 +14,7 @@ final class AppState: ObservableObject {
     @Published var calendarAccessDenied: Bool = false
     @Published var soundWarning: Bool = false
     @Published var wrapUpAlert: Bool = false
+    @Published var minuteTick: Int = 0  // Increments every minute to refresh time-dependent views
 
     // MARK: - Services
 
@@ -27,6 +28,7 @@ final class AppState: ObservableObject {
 
     private var pollTimer: Timer?
     private var tickTimer: Timer?
+    private var minuteTimer: Timer?
     private var countdownScheduled = false
     private var settingsSink: AnyCancellable?
     private var calendarSink: AnyCancellable?
@@ -61,11 +63,17 @@ final class AppState: ObservableObject {
         pollTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refreshEvents() }
         }
+
+        // Tick every minute to refresh time-dependent displays (e.g. "Xm left")
+        minuteTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.minuteTick += 1 }
+        }
     }
 
     func stop() {
         pollTimer?.invalidate()
         tickTimer?.invalidate()
+        minuteTimer?.invalidate()
         countdownPlayer.stop()
     }
 
