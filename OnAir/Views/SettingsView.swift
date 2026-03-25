@@ -932,41 +932,56 @@ struct SettingsView: View {
 
                     // MARK: Week Strip
                     if !stats.records.isEmpty {
-                        dataTile(title: "This Week", icon: "calendar") {
-                            let dayData = statsWeekDayData
-                            let maxCount = max(dayData.map(\.count).max() ?? 1, 1)
+                        let dayData = statsWeekDayData
+                        let maxCount = max(dayData.map(\.count).max() ?? 1, 1)
 
-                            HStack(spacing: 6) {
-                                ForEach(Array(dayData.enumerated()), id: \.offset) { _, day in
-                                    VStack(spacing: 5) {
-                                        // Count label
-                                        Text(day.count > 0 ? "\(day.count)" : "")
-                                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                                            .foregroundStyle(P.text2)
-                                            .frame(height: 14)
+                        HStack(spacing: 8) {
+                            ForEach(Array(dayData.enumerated()), id: \.offset) { _, day in
+                                VStack(spacing: 0) {
+                                    // Bar area
+                                    VStack(spacing: 4) {
+                                        Spacer(minLength: 0)
 
-                                        // Bar
-                                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                            .fill(day.count > 0 ? accentColor : .white.opacity(0.04))
+                                        if day.count > 0 {
+                                            Text("\(day.count)")
+                                                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                                                .foregroundStyle(P.text1)
+                                        }
+
+                                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                            .fill(day.count > 0 ? accentColor : .white.opacity(0.03))
                                             .frame(height: day.count > 0
-                                                ? max(CGFloat(day.count) / CGFloat(maxCount) * 52, 8)
-                                                : 3)
-                                            .frame(maxHeight: 52, alignment: .bottom)
-
-                                        // Day label
-                                        Text(day.initial)
-                                            .font(.system(size: 10, weight: day.isToday ? .bold : .medium))
-                                            .foregroundStyle(day.isToday ? P.text1 : P.text3)
-                                            .frame(width: 22, height: 22)
-                                            .background(
-                                                Circle()
-                                                    .fill(day.isToday ? .white.opacity(0.06) : .clear)
-                                            )
+                                                ? max(CGFloat(day.count) / CGFloat(maxCount) * 44, 10)
+                                                : 2)
                                     }
-                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 70)
+
+                                    // Day label
+                                    Text(day.initial)
+                                        .font(.system(size: 11, weight: day.isToday ? .heavy : .medium))
+                                        .foregroundStyle(day.isToday ? P.text1 : P.text3)
+                                        .padding(.top, 8)
+                                        .padding(.bottom, 4)
+                                        .overlay(alignment: .bottom) {
+                                            if day.isToday {
+                                                Circle()
+                                                    .fill(accentColor)
+                                                    .frame(width: 4, height: 4)
+                                            }
+                                        }
                                 }
+                                .frame(maxWidth: .infinity)
                             }
                         }
+                        .padding(16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(.white.opacity(0.03))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .strokeBorder(.white.opacity(0.05), lineWidth: 0.5)
+                        )
                     }
 
                     // MARK: Focus Summary
@@ -985,17 +1000,35 @@ struct SettingsView: View {
                         }
                     }
 
-                    // MARK: Breakdown
+                    // MARK: Peak Hours + Platforms
                     HStack(alignment: .top, spacing: 12) {
                         if !stats.peakHours.isEmpty {
                             dataTile(title: "Peak Hours", icon: "clock.fill") {
-                                VStack(spacing: 10) {
+                                VStack(spacing: 8) {
                                     ForEach(stats.peakHours.prefix(4), id: \.hour) { item in
-                                        statsBreakdownRow(
-                                            label: item.hour,
-                                            percentage: item.percentage,
-                                            color: amber
-                                        )
+                                        HStack(spacing: 10) {
+                                            Text(compactHourLabel(item.hour))
+                                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                                .foregroundStyle(P.text2)
+                                                .frame(width: 52, alignment: .leading)
+
+                                            GeometryReader { geo in
+                                                ZStack(alignment: .leading) {
+                                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                                        .fill(.white.opacity(0.04))
+                                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                                        .fill(amber)
+                                                        .frame(width: max(geo.size.width * item.percentage / 100, 6))
+                                                }
+                                            }
+                                            .frame(height: 8)
+
+                                            Text("\(Int(item.percentage))%")
+                                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                                .foregroundStyle(P.text3)
+                                                .frame(width: 28, alignment: .trailing)
+                                                .monospacedDigit()
+                                        }
                                     }
                                 }
                             }
@@ -1003,46 +1036,72 @@ struct SettingsView: View {
 
                         if !stats.platformBreakdown.isEmpty {
                             dataTile(title: "Platforms", icon: "video.fill") {
-                                VStack(spacing: 10) {
-                                    ForEach(stats.platformBreakdown, id: \.platform) { item in
-                                        statsBreakdownRow(
-                                            label: item.platform,
-                                            percentage: item.percentage,
-                                            color: blue
-                                        )
+                                VStack(spacing: 12) {
+                                    // Stacked segment bar
+                                    GeometryReader { geo in
+                                        let platformColors: [Color] = [blue, accentColor, amber, .green, .purple]
+                                        HStack(spacing: 2) {
+                                            ForEach(Array(stats.platformBreakdown.enumerated()), id: \.element.platform) { i, item in
+                                                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                                    .fill(platformColors[i % platformColors.count])
+                                                    .frame(width: max(geo.size.width * item.percentage / 100 - 1, 4))
+                                            }
+                                        }
+                                    }
+                                    .frame(height: 10)
+
+                                    // Legend
+                                    VStack(spacing: 6) {
+                                        let platformColors: [Color] = [blue, accentColor, amber, .green, .purple]
+                                        ForEach(Array(stats.platformBreakdown.enumerated()), id: \.element.platform) { i, item in
+                                            HStack(spacing: 8) {
+                                                Circle()
+                                                    .fill(platformColors[i % platformColors.count])
+                                                    .frame(width: 6, height: 6)
+                                                Text(item.platform)
+                                                    .font(.system(size: 11, weight: .medium))
+                                                    .foregroundStyle(P.text1)
+                                                Spacer()
+                                                Text("\(item.count)")
+                                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                                    .foregroundStyle(P.text2)
+                                                    .monospacedDigit()
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
 
-                    // MARK: Top People + Recurring (side by side)
+                    // MARK: Top People + Recurring
                     HStack(alignment: .top, spacing: 12) {
                         if !stats.topAttendees.isEmpty {
                             let maxAttendeeCount = max(stats.topAttendees.first?.count ?? 1, 1)
                             dataTile(title: "Top People", icon: "person.2.fill") {
-                                VStack(spacing: 10) {
+                                VStack(spacing: 12) {
                                     ForEach(Array(stats.topAttendees.enumerated()), id: \.element.name) { i, person in
+                                        let displayName = extractDisplayName(person.name)
                                         HStack(spacing: 10) {
                                             ZStack {
                                                 Circle()
-                                                    .fill(i == 0 ? accentColor.opacity(0.15) : .white.opacity(0.04))
-                                                    .frame(width: 28, height: 28)
-                                                Text(String(person.name.prefix(1)).uppercased())
-                                                    .font(.system(size: 12, weight: .bold))
-                                                    .foregroundStyle(i == 0 ? accentColor : P.text3)
+                                                    .fill(i == 0 ? accentColor.opacity(0.15) : .white.opacity(0.05))
+                                                    .frame(width: 32, height: 32)
+                                                Text(String(displayName.prefix(1)).uppercased())
+                                                    .font(.system(size: 13, weight: .bold))
+                                                    .foregroundStyle(i == 0 ? accentColor : P.text2)
                                             }
 
                                             VStack(alignment: .leading, spacing: 4) {
                                                 HStack {
-                                                    Text(person.name)
-                                                        .font(.system(size: 12, weight: .medium))
+                                                    Text(displayName)
+                                                        .font(.system(size: 12, weight: .semibold))
                                                         .foregroundStyle(P.text1)
                                                         .lineLimit(1)
                                                     Spacer()
-                                                    Text("\(person.count)\u{00D7}")
-                                                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                                                        .foregroundStyle(P.text3)
+                                                    Text("\(person.count)")
+                                                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                                                        .foregroundStyle(i == 0 ? accentColor : P.text2)
                                                         .monospacedDigit()
                                                 }
                                                 GeometryReader { geo in
@@ -1050,11 +1109,11 @@ struct SettingsView: View {
                                                         RoundedRectangle(cornerRadius: 3, style: .continuous)
                                                             .fill(.white.opacity(0.04))
                                                         RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                                            .fill(accentColor)
+                                                            .fill(accentColor.opacity(i == 0 ? 1.0 : 0.5))
                                                             .frame(width: max(geo.size.width * CGFloat(person.count) / CGFloat(maxAttendeeCount), 6))
                                                     }
                                                 }
-                                                .frame(height: 4)
+                                                .frame(height: 5)
                                             }
                                         }
                                     }
@@ -1064,30 +1123,35 @@ struct SettingsView: View {
 
                         // Recurring
                         if !stats.topMeetings.isEmpty {
+                            let maxMeetingCount = max(stats.topMeetings.first?.count ?? 1, 1)
                             dataTile(title: "Recurring", icon: "arrow.2.squarepath") {
                                 VStack(spacing: 0) {
                                     ForEach(Array(stats.topMeetings.enumerated()), id: \.element.title) { i, item in
                                         HStack(spacing: 10) {
-                                            ZStack {
-                                                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                                    .fill(i == 0 ? accentColor.opacity(0.15) : .white.opacity(0.04))
-                                                    .frame(width: 24, height: 24)
-                                                Text("\(i + 1)")
-                                                    .font(.system(size: 10, weight: .bold))
-                                                    .foregroundStyle(i == 0 ? accentColor : P.text3)
-                                            }
-
-                                            Text(item.title)
-                                                .font(.system(size: 12, weight: .medium))
-                                                .foregroundStyle(P.text1)
-                                                .lineLimit(1)
-
-                                            Spacer()
-
-                                            Text("\(item.count)\u{00D7}")
-                                                .font(.system(size: 14, weight: .bold))
-                                                .foregroundStyle(i == 0 ? accentColor : P.text3)
+                                            // Count as the visual element
+                                            Text("\(item.count)")
+                                                .font(.system(size: 14, weight: .heavy, design: .rounded))
+                                                .foregroundStyle(i == 0 ? accentColor : P.text2)
+                                                .frame(width: 24)
                                                 .monospacedDigit()
+
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(item.title)
+                                                    .font(.system(size: 12, weight: .medium))
+                                                    .foregroundStyle(P.text1)
+                                                    .lineLimit(1)
+
+                                                GeometryReader { geo in
+                                                    ZStack(alignment: .leading) {
+                                                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                                            .fill(.white.opacity(0.04))
+                                                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                                            .fill(accentColor.opacity(i == 0 ? 0.6 : 0.25))
+                                                            .frame(width: max(geo.size.width * CGFloat(item.count) / CGFloat(maxMeetingCount), 6))
+                                                    }
+                                                }
+                                                .frame(height: 3)
+                                            }
                                         }
                                         .padding(.vertical, 8)
 
@@ -1219,6 +1283,28 @@ struct SettingsView: View {
                 .foregroundStyle(P.text3)
         }
         .padding(.vertical, 6)
+    }
+
+    /// Compact hour label: "12 PM–1 PM" → "12–1p"
+    private func compactHourLabel(_ label: String) -> String {
+        let cleaned = label
+            .replacingOccurrences(of: " AM", with: "a")
+            .replacingOccurrences(of: " PM", with: "p")
+            .replacingOccurrences(of: "\u{2013}", with: "–")
+        return cleaned
+    }
+
+    /// Extract display name from email or full name
+    private func extractDisplayName(_ raw: String) -> String {
+        if raw.contains("@") {
+            let local = String(raw.prefix(while: { $0 != "@" }))
+            return local
+                .replacingOccurrences(of: ".", with: " ")
+                .split(separator: " ")
+                .map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
+                .joined(separator: " ")
+        }
+        return raw
     }
 
     private var tileVerticalDivider: some View {

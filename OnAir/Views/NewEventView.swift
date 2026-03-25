@@ -1,29 +1,153 @@
 import SwiftUI
 import EventKit
 
+// MARK: - Natural Language Parser
+
+struct ParsedEvent {
+    var title: String = ""
+    var date: Date?
+    var duration: TimeInterval?
+    var location: String?
+    var recurrence: String?
+    var people: [String] = []
+
+    var cleanTitle: String {
+        title.isEmpty ? "Untitled Event" : title
+    }
+}
+
+struct NLEventParser {
+
+    /// Known attendee names for fuzzy matching
+    var knownPeople: [String] = []
+
+    func parse(_ input: String) -> ParsedEvent {
+        var result = ParsedEvent()
+        var remaining = input
+
+        // 1. Extract date FIRST using NSDataDetector — so "at 1pm" is consumed before location parser
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
+        if let dateMatch = detector?.matches(in: remaining, options: [], range: NSRange(remaining.startIndex..., in: remaining)).first {
+            result.date = dateMatch.date
+            if let range = Range(dateMatch.range, in: remaining) {
+                remaining = remaining.replacingCharacters(in: range, with: " ")
+            }
+        }
+
+        // 2. Extract duration — "for 30m", "for 1 hour", "for 1.5h", "for 90 min"
+        let durationPattern = #"(?:^|\s)for\s+(\d+(?:\.\d+)?)\s*(?:h(?:(?:ou)?rs?)?|m(?:in(?:ute)?s?)?)"#
+        if let match = remaining.range(of: durationPattern, options: .regularExpression, range: remaining.startIndex..<remaining.endIndex) {
+            let matched = String(remaining[match])
+            let numPattern = #"(\d+(?:\.\d+)?)\s*(h|m)"#
+            if let numMatch = matched.range(of: numPattern, options: .regularExpression) {
+                let numStr = String(matched[numMatch])
+                let digits = numStr.components(separatedBy: CharacterSet.letters).joined().trimmingCharacters(in: .whitespaces)
+                let isHours = numStr.lowercased().contains("h")
+                if let val = Double(digits) {
+                    result.duration = isHours ? val * 3600 : val * 60
+                }
+            }
+            remaining = remaining.replacingCharacters(in: match, with: " ")
+        }
+
+        // 3. Extract recurrence — "every Monday", "weekly", "daily", "every day"
+        let recurrencePatterns: [(pattern: String, label: String)] = [
+            (#"(?:^|\s)every\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)"#, ""),
+            (#"(?:^|\s)every\s+day"#, "Daily"),
+            (#"(?:^|\s)every\s+week"#, "Weekly"),
+            (#"(?:^|\s)every\s+month"#, "Monthly"),
+            (#"(?:^|\s)\b(daily)\b"#, "Daily"),
+            (#"(?:^|\s)\b(weekly)\b"#, "Weekly"),
+            (#"(?:^|\s)\b(monthly)\b"#, "Monthly"),
+        ]
+        for rp in recurrencePatterns {
+            if let match = remaining.range(of: rp.pattern, options: [.regularExpression, .caseInsensitive]) {
+                let matched = String(remaining[match]).trimmingCharacters(in: .whitespaces)
+                if rp.label.isEmpty {
+                    let day = matched.replacingOccurrences(of: "every ", with: "", options: .caseInsensitive)
+                    result.recurrence = "Every \(day.capitalized)"
+                } else {
+                    result.recurrence = rp.label
+                }
+                remaining = remaining.replacingCharacters(in: match, with: " ")
+                break
+            }
+        }
+
+        // 4. Extract people — "with Raj", "with Raj and Sarah"
+        // Runs after date removal so "at 1pm" won't interfere
+        let peoplePattern = #"(?:^|\s)with\s+(.+?)(?:\s+(?:at|on|in|for|from)\b|$)"#
+        if let match = remaining.range(of: peoplePattern, options: [.regularExpression, .caseInsensitive]) {
+            let matched = String(remaining[match])
+            if let withRange = matched.range(of: "with ", options: .caseInsensitive) {
+                let namesStr = String(matched[withRange.upperBound...])
+                    .trimmingCharacters(in: .whitespaces)
+                    // Strip trailing prepositions and conjunctions
+                    .replacingOccurrences(of: #"\s+(?:and|or|at|on|in|for|from)\s*$"#, with: "", options: .regularExpression)
+                let names = namesStr
+                    .replacingOccurrences(of: " and ", with: ", ")
+                    .replacingOccurrences(of: " & ", with: ", ")
+                    .split(separator: ",")
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty && $0.lowercased() != "and" && $0.lowercased() != "or" }
+                result.people = names
+            }
+            remaining = remaining.replacingCharacters(in: match, with: " ")
+        }
+
+        // 5. Extract location — "at Blue Bottle", "in Conference Room"
+        // Runs after date + people removal
+        let locationPattern = #"(?:^|\s)(?:at|in)\s+([A-Z][A-Za-z0-9' ]+)"#
+        if let match = remaining.range(of: locationPattern, options: .regularExpression) {
+            let matched = String(remaining[match]).trimmingCharacters(in: .whitespaces)
+            if let prepRange = matched.range(of: #"^(?:at|in)\s+"#, options: .regularExpression) {
+                result.location = String(matched[prepRange.upperBound...]).trimmingCharacters(in: .whitespaces)
+            }
+            remaining = remaining.replacingCharacters(in: match, with: " ")
+        }
+
+        // 6. Clean remaining text as title
+        result.title = remaining
+            .replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+
+        return result
+    }
+}
+
+// MARK: - New Event View
+
 struct NewEventView: View {
 
     @ObservedObject var appState: AppState
     @Binding var isPresented: Bool
-    @State private var title = ""
+
+    @State private var rawInput = ""
     @State private var location = ""
     @State private var meetingLink = ""
     @State private var notes = ""
     @State private var duration: TimeInterval = 1800
     @State private var selectedCalendarId: String = ""
     @State private var showCalPicker = false
+    @State private var durationManuallySet = false
     @FocusState private var titleFocused: Bool
 
-    private let accentPurple = Color(red: 0.6, green: 0.3, blue: 0.7)
+    private var accentColor: Color { Color(hex: appState.settings.accentColorHex) }
     private let store = EKEventStore()
 
-    // NLP
-    private var detectedDate: Date? {
-        guard !title.isEmpty else { return nil }
-        let d = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
-        return d?.matches(in: title, options: [], range: NSRange(title.startIndex..., in: title)).first?.date
+    private var parsed: ParsedEvent {
+        let parser = NLEventParser(knownPeople: appState.statsService.topAttendees.map(\.name))
+        return parser.parse(rawInput)
     }
-    private var eventDate: Date { detectedDate ?? Date().addingTimeInterval(1800) }
+
+    private var effectiveDate: Date { parsed.date ?? Date().addingTimeInterval(1800) }
+    private var effectiveDuration: TimeInterval { durationManuallySet ? duration : (parsed.duration ?? duration) }
+    private var effectiveLocation: String { location.isEmpty ? (parsed.location ?? "") : location }
+
+    private var hasAnyParsed: Bool {
+        parsed.date != nil || parsed.duration != nil || parsed.location != nil ||
+        parsed.recurrence != nil || !parsed.people.isEmpty
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -45,24 +169,35 @@ struct NewEventView: View {
             }
             .padding(.bottom, 16)
 
-            // Title
-            TextField("Try: Team sync tomorrow 3pm", text: $title)
+            // Natural language input
+            TextField("Team sync tomorrow 3pm for 1h at Office", text: $rawInput)
                 .textFieldStyle(.plain)
                 .font(.system(size: 16))
                 .foregroundStyle(.white.opacity(0.9))
                 .focused($titleFocused)
-                .padding(.bottom, 6)
+                .onChange(of: rawInput) { _ in
+                    // If parser found a duration and user hasn't manually overridden
+                    if !durationManuallySet, let d = parsed.duration {
+                        duration = d
+                    }
+                }
+                .padding(.bottom, 8)
 
-            // Date feedback
-            HStack(spacing: 5) {
-                Image(systemName: detectedDate != nil ? "calendar.badge.checkmark" : "calendar")
-                    .font(.system(size: 10))
-                    .foregroundStyle(detectedDate != nil ? .green.opacity(0.7) : .white.opacity(0.2))
-                Text(dateText)
-                    .font(.system(size: 11))
-                    .foregroundStyle(detectedDate != nil ? .green.opacity(0.6) : .white.opacity(0.2))
+            // Parsed tokens preview
+            if hasAnyParsed {
+                parsedTokens
+                    .padding(.bottom, 12)
+            } else if !rawInput.isEmpty {
+                HStack(spacing: 5) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.2))
+                    Text("Defaults to 30 min from now")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.2))
+                }
+                .padding(.bottom, 12)
             }
-            .padding(.bottom, 14)
 
             // Duration pills
             HStack(spacing: 8) {
@@ -71,13 +206,16 @@ struct NewEventView: View {
                     .frame(width: 18)
                 HStack(spacing: 3) {
                     ForEach([(l: "30m", s: 1800.0), (l: "1h", s: 3600.0), (l: "1.5h", s: 5400.0), (l: "2h", s: 7200.0)], id: \.l) { d in
-                        Button { duration = d.s } label: {
+                        Button {
+                            duration = d.s
+                            durationManuallySet = true
+                        } label: {
                             Text(d.l)
-                                .font(.system(size: 11, weight: duration == d.s ? .bold : .regular))
-                                .foregroundStyle(duration == d.s ? .white : .white.opacity(0.3))
+                                .font(.system(size: 11, weight: effectiveDuration == d.s ? .bold : .regular))
+                                .foregroundStyle(effectiveDuration == d.s ? .white : .white.opacity(0.3))
                                 .padding(.horizontal, 10).padding(.vertical, 5)
                                 .background(RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                    .fill(duration == d.s ? .white.opacity(0.1) : .clear))
+                                    .fill(effectiveDuration == d.s ? .white.opacity(0.1) : .clear))
                         }.buttonStyle(.plain)
                     }
                 }
@@ -86,13 +224,15 @@ struct NewEventView: View {
 
             // Fields
             VStack(alignment: .leading, spacing: 10) {
-                field("location", "Add a location", $location)
-                field("link", "Meeting link or URL", $meetingLink)
+                field("location",
+                      parsed.location != nil && location.isEmpty ? "\(parsed.location!) (from input)" : "Add a location",
+                      $location, prefill: nil)
+                field("link", "Meeting link or URL", $meetingLink, prefill: nil)
                 HStack(spacing: 8) {
                     Image(systemName: "bell").font(.system(size: 12)).foregroundStyle(.white.opacity(0.25)).frame(width: 18)
                     Text("5m before").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.85))
                 }
-                field("doc.text", "Notes, agenda, or prep", $notes)
+                field("doc.text", "Notes, agenda, or prep", $notes, prefill: nil)
             }
 
             Spacer()
@@ -102,23 +242,20 @@ struct NewEventView: View {
 
             // Footer: calendar + create
             HStack {
-                // Custom dropdown
                 calendarDropdown
-
                 Spacer()
-
                 Button { createEvent() } label: {
                     HStack(spacing: 4) {
                         Text("Create").font(.system(size: 13, weight: .semibold))
-                        Text("⌘↵").font(.system(size: 11)).foregroundStyle(.white.opacity(0.6))
+                        Text("\u{2318}\u{21A9}").font(.system(size: 11)).foregroundStyle(.white.opacity(0.6))
                     }
                     .foregroundStyle(.white)
                     .padding(.horizontal, 18).padding(.vertical, 8)
                     .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(title.isEmpty ? accentPurple.opacity(0.3) : accentPurple))
+                        .fill(rawInput.isEmpty ? accentColor.opacity(0.3) : accentColor))
                 }
                 .buttonStyle(.plain)
-                .disabled(title.isEmpty)
+                .disabled(rawInput.isEmpty)
             }
         }
         .padding(20)
@@ -130,10 +267,47 @@ struct NewEventView: View {
         }
     }
 
+    // MARK: - Parsed Tokens
+
+    private var parsedTokens: some View {
+        FlowLayout(spacing: 6) {
+            if let date = parsed.date {
+                tokenView(icon: "calendar", text: formatDate(date), color: .green)
+            }
+            if let dur = parsed.duration {
+                tokenView(icon: "clock", text: formatDuration(dur), color: .orange)
+            }
+            if let loc = parsed.location {
+                tokenView(icon: "mappin", text: loc, color: .blue)
+            }
+            if let rec = parsed.recurrence {
+                tokenView(icon: "repeat", text: rec, color: .purple)
+            }
+            ForEach(parsed.people, id: \.self) { person in
+                tokenView(icon: "person", text: person, color: .cyan)
+            }
+        }
+    }
+
+    private func tokenView(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 8, weight: .bold))
+            Text(text)
+                .font(.system(size: 10, weight: .semibold))
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .fill(color.opacity(0.12))
+        )
+    }
+
     // MARK: - Calendar Dropdown
 
     private var calendarDropdown: some View {
-        // Selected calendar button
         Button { showCalPicker.toggle() } label: {
             HStack(spacing: 8) {
                 Circle().fill(currentCalColor).frame(width: 8, height: 8)
@@ -161,12 +335,12 @@ struct NewEventView: View {
                                 Circle().fill(Color(cgColor: cal.cgColor)).frame(width: 7, height: 7)
                                 Text(shortName(cal.title))
                                     .font(.system(size: 12))
-                                    .foregroundStyle(cal.calendarIdentifier == selectedCalendarId ? accentPurple : .white.opacity(0.7))
+                                    .foregroundStyle(cal.calendarIdentifier == selectedCalendarId ? accentColor : .white.opacity(0.7))
                                 Spacer()
                                 if cal.calendarIdentifier == selectedCalendarId {
                                     Image(systemName: "checkmark")
                                         .font(.system(size: 10, weight: .bold))
-                                        .foregroundStyle(accentPurple)
+                                        .foregroundStyle(accentColor)
                                 }
                             }
                             .padding(.horizontal, 10).padding(.vertical, 7)
@@ -186,12 +360,20 @@ struct NewEventView: View {
 
     // MARK: - Helpers
 
-    private var dateText: String {
-        if let d = detectedDate {
-            let f = DateFormatter(); f.dateFormat = "EEE, d MMM 'at' h:mm a"
-            return f.string(from: d)
+    private func formatDate(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "EEE, d MMM 'at' h:mm a"
+        return f.string(from: d)
+    }
+
+    private func formatDuration(_ secs: TimeInterval) -> String {
+        let mins = Int(secs / 60)
+        if mins >= 60 {
+            let h = mins / 60
+            let m = mins % 60
+            return m > 0 ? "\(h)h \(m)m" : "\(h)h"
         }
-        return "No date detected — defaults to now"
+        return "\(mins)m"
     }
 
     private var writableCalendars: [EKCalendar] {
@@ -204,14 +386,14 @@ struct NewEventView: View {
 
     private var currentCalColor: Color {
         if let c = currentCal { return Color(cgColor: c.cgColor) }
-        return accentPurple
+        return accentColor
     }
 
     private func shortName(_ name: String) -> String {
         name.contains("@") ? String(name.prefix(while: { $0 != "@" })) : name
     }
 
-    private func field(_ icon: String, _ placeholder: String, _ text: Binding<String>) -> some View {
+    private func field(_ icon: String, _ placeholder: String, _ text: Binding<String>, prefill: String?) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon).font(.system(size: 12)).foregroundStyle(.white.opacity(0.25)).frame(width: 18)
             TextField(placeholder, text: text).textFieldStyle(.plain).font(.system(size: 13))
@@ -221,25 +403,91 @@ struct NewEventView: View {
     // MARK: - Create
 
     private func createEvent() {
-        guard !title.isEmpty else { return }
+        guard !rawInput.isEmpty else { return }
         let ekEvent = EKEvent(eventStore: store)
-        let clean = stripDate(title)
-        ekEvent.title = clean.isEmpty ? title : clean
-        ekEvent.startDate = eventDate
-        ekEvent.endDate = eventDate.addingTimeInterval(duration)
-        if !location.isEmpty { ekEvent.location = location }
+        ekEvent.title = parsed.cleanTitle
+        ekEvent.startDate = effectiveDate
+        ekEvent.endDate = effectiveDate.addingTimeInterval(effectiveDuration)
+
+        let loc = effectiveLocation
+        if !loc.isEmpty { ekEvent.location = loc }
+
         var n = notes
         if !meetingLink.isEmpty { n = n.isEmpty ? meetingLink : "\(n)\n\(meetingLink)" }
+        if !parsed.people.isEmpty {
+            let ppl = "Attendees: " + parsed.people.joined(separator: ", ")
+            n = n.isEmpty ? ppl : "\(n)\n\(ppl)"
+        }
         if !n.isEmpty { ekEvent.notes = n }
+
+        // Recurrence
+        if let rec = parsed.recurrence {
+            let freq: EKRecurrenceFrequency
+            switch rec.lowercased() {
+            case "daily": freq = .daily
+            case "weekly": freq = .weekly
+            case "monthly": freq = .monthly
+            default:
+                // "Every Monday" etc — weekly on that day
+                freq = .weekly
+            }
+            ekEvent.addRecurrenceRule(EKRecurrenceRule(
+                recurrenceWith: freq,
+                interval: 1,
+                end: nil
+            ))
+        }
+
         ekEvent.addAlarm(EKAlarm(relativeOffset: -300))
         ekEvent.calendar = currentCal ?? store.defaultCalendarForNewEvents
-        do { try store.save(ekEvent, span: .thisEvent); appState.refreshEvents(); isPresented = false } catch {}
+
+        do {
+            try store.save(ekEvent, span: .thisEvent)
+            appState.refreshEvents()
+            isPresented = false
+        } catch {}
+    }
+}
+
+// MARK: - Flow Layout
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = arrange(proposal: proposal, subviews: subviews)
+        return result.size
     }
 
-    private func stripDate(_ t: String) -> String {
-        let d = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
-        guard let m = d?.matches(in: t, options: [], range: NSRange(t.startIndex..., in: t)).first,
-              let r = Range(m.range, in: t) else { return t }
-        return t.replacingCharacters(in: r, with: "").replacingOccurrences(of: "  ", with: " ").trimmingCharacters(in: .whitespaces)
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = arrange(proposal: proposal, subviews: subviews)
+        for (index, position) in result.positions.enumerated() {
+            subviews[index].place(at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y),
+                                  proposal: .unspecified)
+        }
+    }
+
+    private func arrange(proposal: ProposedViewSize, subviews: Subviews) -> (positions: [CGPoint], size: CGSize) {
+        let maxWidth = proposal.width ?? .infinity
+        var positions: [CGPoint] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var maxX: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth && x > 0 {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            positions.append(CGPoint(x: x, y: y))
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+            maxX = max(maxX, x)
+        }
+
+        return (positions, CGSize(width: maxX, height: y + rowHeight))
     }
 }

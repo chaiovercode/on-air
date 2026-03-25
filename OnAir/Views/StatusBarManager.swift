@@ -153,14 +153,17 @@ final class StatusBarManager: NSObject {
                 return nil
             }
 
+            // Bare-key shortcuts: skip when a text field is focused
+            let isEditing = event.window?.firstResponder is NSTextView
+
             // T — toggle today timeline
-            if flags.isEmpty, event.charactersIgnoringModifiers == "t" {
+            if flags.isEmpty, event.charactersIgnoringModifiers == "t", !isEditing {
                 NotificationCenter.default.post(name: .toggleTimeline, object: nil)
                 return nil
             }
 
             // J — join next meeting link
-            if flags.isEmpty, event.charactersIgnoringModifiers == "j" {
+            if flags.isEmpty, event.charactersIgnoringModifiers == "j", !isEditing {
                 if let link = self.appState.nextEvent?.meetingLink {
                     NSWorkspace.shared.open(link.url)
                     return nil
