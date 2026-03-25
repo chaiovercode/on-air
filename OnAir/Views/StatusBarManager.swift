@@ -97,21 +97,21 @@ final class StatusBarManager: NSObject {
         let menuBarBottom = screenRect.minY // bottom edge of menu bar button
         let finalY = menuBarBottom - panelH - 4
 
-        // Start fully behind menu bar, slide entire distance down
-        let startY = menuBarBottom - panelH + panelH // top edge at menuBarBottom, whole panel above
-        let startFrame = NSRect(x: x, y: startY, width: panelW, height: panelH)
         let finalFrame = NSRect(x: x, y: finalY, width: panelW, height: panelH)
+        // Start: top edge at menu bar bottom (6pt above final position)
+        let startFrame = NSRect(x: x, y: finalY + 6, width: panelW, height: panelH)
 
         panel.setFrame(startFrame, display: false)
-        panel.alphaValue = 1
+        panel.alphaValue = 0
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
-        // Slide down — full panel travel, slow enough to feel deliberate
+        // Quick fade-in at menu bar edge, then gentle settle into place
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.45
-            ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.16, 1, 0.3, 1) // custom ease-out
+            ctx.duration = 0.35
+            ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.0, 0.0, 0.2, 1) // ease out
             panel.animator().setFrame(finalFrame, display: true)
+            panel.animator().alphaValue = 1
         }
 
         // Close on outside click
