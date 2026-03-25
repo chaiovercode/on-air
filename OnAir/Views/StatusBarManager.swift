@@ -88,26 +88,32 @@ final class StatusBarManager: NSObject {
         let panel = popoverPanel ?? createPanel()
         popoverPanel = panel
 
-        // Position: top edge flush with bottom of menu bar button
+        // Position below menu bar
         let buttonRect = button.convert(button.bounds, to: nil)
         let screenRect = buttonWindow.convertToScreen(buttonRect)
         let panelW = panel.frame.width
         let panelH = panel.frame.height
         let x = screenRect.midX - panelW / 2
-        let topEdgeY = screenRect.minY  // bottom of menu bar button
-        let finalY = topEdgeY - panelH - 4
+        let menuBarBottom = screenRect.minY // bottom edge of menu bar button
+        let finalY = menuBarBottom - panelH - 4
 
-        // Start: only top sliver visible (panel mostly hidden above)
-        let startFrame = NSRect(x: x, y: topEdgeY - 1, width: panelW, height: panelH)
+        // Start with top edge just below menu bar (panel.origin.y = menuBarBottom - panelH)
+        // means top edge is at menuBarBottom. Then animate origin down to finalY.
+        let startFrame = NSRect(x: x, y: menuBarBottom - panelH, width: panelW, height: panelH)
         let finalFrame = NSRect(x: x, y: finalY, width: panelW, height: panelH)
 
         panel.setFrame(startFrame, display: false)
-        panel.alphaValue = 1
+        panel.alphaValue = 0
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
-        // Animate slide down
-        panel.setFrame(finalFrame, display: true, animate: true)
+        // Slide down from menu bar
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.3
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().setFrame(finalFrame, display: true)
+            panel.animator().alphaValue = 1
+        }
 
         // Close on outside click
         eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
