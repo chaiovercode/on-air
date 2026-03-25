@@ -28,7 +28,6 @@ final class AppState: ObservableObject {
     private var pollTimer: Timer?
     private var tickTimer: Timer?
     private var countdownScheduled = false
-    private var lastRecordedEventId: String?
     private var settingsSink: AnyCancellable?
     private var calendarSink: AnyCancellable?
     private var focusSink: AnyCancellable?
@@ -77,6 +76,14 @@ final class AppState: ObservableObject {
             disabledCalendarIds: settings.disabledCalendarIds
         )
 
+        // Record attendance for all ended meetings today
+        if settings.trackStats {
+            let now = Date()
+            for event in todayEvents where event.endDate <= now {
+                statsService.recordAttendance(event)
+            }
+        }
+
         let now = Date()
         nextEvent = todayEvents.first { $0.endDate > now }
         updateCountdown()
@@ -100,12 +107,7 @@ final class AppState: ObservableObject {
             scheduleCountdown(for: next)
         }
 
-        // Record attendance only after meeting has ended
         if remaining <= 0 {
-            if let next = nextEvent, next.endDate <= Date(), next.id != lastRecordedEventId && settings.trackStats {
-                statsService.recordAttendance(next)
-                lastRecordedEventId = next.id
-            }
             countdownActive = false
             countdownScheduled = false
         }

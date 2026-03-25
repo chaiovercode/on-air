@@ -895,116 +895,183 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity)
             } else {
                 VStack(alignment: .leading, spacing: 0) {
-                    // Hero stats — big numbers
+
+                    // MARK: Hero Numbers
                     HStack(spacing: 0) {
-                        statCard(
+                        heroStat(
                             value: "\(stats.meetingsThisWeek)",
-                            label: "Meetings\nthis week",
-                            icon: "calendar",
+                            label: "this week",
                             color: accentColor
                         )
-                        statCard(
+                        heroDivider
+                        heroStat(
+                            value: "\(stats.meetingsThisMonth)",
+                            label: "this month",
+                            color: accentColor
+                        )
+                        heroDivider
+                        heroStat(
                             value: stats.totalHoursDisplay,
-                            label: "Time in\nmeetings",
-                            icon: "clock",
+                            label: "total time",
                             color: Color(red: 1.0, green: 0.6, blue: 0.2)
                         )
-                        statCard(
-                            value: "\(focus.todayFocusMinutes)m",
-                            label: "Focused\ntoday",
-                            icon: "brain.head.profile",
-                            color: .green
-                        )
+                        if focus.totalSessions > 0 {
+                            heroDivider
+                            heroStat(
+                                value: "\(focus.todayFocusMinutes)m",
+                                label: "focused today",
+                                color: .green
+                            )
+                        }
                     }
-                    .padding(.top, 12)
+                    .padding(.top, 20)
+                    .padding(.bottom, 24)
                     .padding(.horizontal, 24)
 
-                    // Focus stats
-                    if focus.totalSessions > 0 {
-                        Section("Focus") {
-                            StatRow("Sessions this week", value: "\(focusSessionsThisWeek)", color: .green)
-                            StatRow("Total focus time", value: formatMinutes(focus.weekFocusMinutes), color: .green)
-                            StatRow("Completion rate", value: "\(Int(focus.completionRate * 100))%", color: focus.completionRate >= 0.7 ? .green : .orange)
-                        }
-                    }
-
-                    // Meeting overview
+                    // MARK: Weekly Activity
                     if !stats.records.isEmpty {
-                        Section("Meetings") {
-                            StatRow("This week", value: "\(stats.meetingsThisWeek)", color: accentColor)
-                            StatRow("This month", value: "\(stats.meetingsThisMonth)", color: accentColor)
-                            StatRow("All time", value: "\(stats.totalMeetings)", color: P.text2)
-                        }
-
-                        // Wellness
-                        Section("Wellness") {
+                        statsSection("This Week") {
                             let wellnessData = weekWellness
-                            HStack(spacing: 4) {
-                                ForEach(wellnessData, id: \.day) { item in
-                                    VStack(spacing: 4) {
+                            HStack(alignment: .bottom, spacing: 6) {
+                                ForEach(Array(wellnessData.enumerated()), id: \.offset) { i, item in
+                                    VStack(spacing: 6) {
+                                        if item.hours > 0 {
+                                            Text(String(format: "%.1f", item.hours))
+                                                .font(.system(size: 9, weight: .medium))
+                                                .foregroundStyle(item.color.opacity(0.7))
+                                        }
                                         RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                            .fill(item.color.opacity(0.6))
-                                            .frame(height: max(CGFloat(item.hours) / 8.0 * 40, 4))
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [item.color.opacity(0.7), item.color.opacity(0.4)],
+                                                    startPoint: .top,
+                                                    endPoint: .bottom
+                                                )
+                                            )
+                                            .frame(height: max(CGFloat(item.hours) / 8.0 * 80, item.hours > 0 ? 6 : 2))
+
                                         Text(item.day)
-                                            .font(.system(size: 9, weight: .medium))
+                                            .font(.system(size: 10, weight: .medium))
                                             .foregroundStyle(P.text3)
                                     }
                                     .frame(maxWidth: .infinity)
                                 }
                             }
-                            .frame(height: 60, alignment: .bottom)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-
-                            HStack(spacing: 12) {
-                                wellnessLegend(color: .green, label: "Light (< 2h)")
-                                wellnessLegend(color: .yellow, label: "Moderate")
-                                wellnessLegend(color: .orange, label: "Busy")
-                                wellnessLegend(color: .red, label: "Heavy (6h+)")
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 10)
+                            .frame(height: 120, alignment: .bottom)
+                            .padding(.vertical, 4)
                         }
                     }
 
-                    // Busiest days
+                    // MARK: Focus
+                    if focus.totalSessions > 0 {
+                        statsSection("Focus") {
+                            HStack(spacing: 0) {
+                                focusMetric(value: "\(focusSessionsThisWeek)", label: "sessions\nthis week")
+                                focusMetric(value: formatMinutes(focus.weekFocusMinutes), label: "focus time\nthis week")
+                                focusMetric(
+                                    value: "\(Int(focus.completionRate * 100))%",
+                                    label: "completion\nrate",
+                                    color: focus.completionRate >= 0.7 ? .green : .orange
+                                )
+                            }
+                        }
+                    }
+
+                    // MARK: Busiest Days
                     if !stats.busiestDays.isEmpty {
-                        Section("Busiest Days") {
-                            ForEach(stats.busiestDays.prefix(5), id: \.dayOfWeek) { day in
-                                Row(String(day.dayOfWeek.prefix(3))) {
-                                    BarIndicator(value: day.percentage, color: accentColor)
-                                    Text("\(Int(day.percentage))%")
-                                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                                        .foregroundStyle(P.text3).monospacedDigit()
-                                        .frame(width: 32, alignment: .trailing)
+                        statsSection("Busiest Days") {
+                            VStack(spacing: 8) {
+                                ForEach(stats.busiestDays.prefix(5), id: \.dayOfWeek) { day in
+                                    HStack(spacing: 12) {
+                                        Text(String(day.dayOfWeek.prefix(3)))
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundStyle(P.text2)
+                                            .frame(width: 32, alignment: .leading)
+
+                                        GeometryReader { geo in
+                                            ZStack(alignment: .leading) {
+                                                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                                    .fill(.white.opacity(0.04))
+                                                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                                    .fill(accentColor.opacity(0.6))
+                                                    .frame(width: max(geo.size.width * day.percentage / 100, 4))
+                                            }
+                                        }
+                                        .frame(height: 8)
+
+                                        Text("\(Int(day.percentage))%")
+                                            .font(.system(size: 11, weight: .medium))
+                                            .foregroundStyle(P.text3)
+                                            .monospacedDigit()
+                                            .frame(width: 32, alignment: .trailing)
+                                    }
                                 }
                             }
                         }
                     }
 
-                    // Platforms
+                    // MARK: Platforms
                     if !stats.platformBreakdown.isEmpty {
-                        Section("Platforms") {
-                            ForEach(stats.platformBreakdown, id: \.platform) { item in
-                                Row(item.platform) {
-                                    BarIndicator(value: item.percentage, color: Color(red: 0.35, green: 0.55, blue: 1.0))
-                                    Text("\(Int(item.percentage))%")
-                                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                                        .foregroundStyle(P.text3).monospacedDigit()
-                                        .frame(width: 32, alignment: .trailing)
+                        statsSection("Platforms") {
+                            VStack(spacing: 8) {
+                                ForEach(stats.platformBreakdown, id: \.platform) { item in
+                                    HStack(spacing: 12) {
+                                        Text(item.platform)
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundStyle(P.text2)
+                                            .frame(width: 80, alignment: .leading)
+                                            .lineLimit(1)
+
+                                        GeometryReader { geo in
+                                            ZStack(alignment: .leading) {
+                                                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                                    .fill(.white.opacity(0.04))
+                                                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                                    .fill(Color(red: 0.35, green: 0.55, blue: 1.0).opacity(0.6))
+                                                    .frame(width: max(geo.size.width * item.percentage / 100, 4))
+                                            }
+                                        }
+                                        .frame(height: 8)
+
+                                        Text("\(Int(item.percentage))%")
+                                            .font(.system(size: 11, weight: .medium))
+                                            .foregroundStyle(P.text3)
+                                            .monospacedDigit()
+                                            .frame(width: 32, alignment: .trailing)
+                                    }
                                 }
                             }
                         }
                     }
 
-                    // Recurring
+                    // MARK: Recurring
                     if !stats.topMeetings.isEmpty {
-                        Section("Recurring") {
-                            ForEach(Array(stats.topMeetings.enumerated()), id: \.element.title) { i, item in
-                                Row(item.title) {
-                                    Text("\(item.count)×")
-                                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                                        .foregroundStyle(i == 0 ? accentColor : P.text3)
+                        statsSection("Recurring") {
+                            VStack(spacing: 0) {
+                                ForEach(Array(stats.topMeetings.enumerated()), id: \.element.title) { i, item in
+                                    HStack(spacing: 12) {
+                                        Text("\(i + 1)")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundStyle(i == 0 ? accentColor : P.text3)
+                                            .frame(width: 16)
+
+                                        Text(item.title)
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(P.text1)
+                                            .lineLimit(1)
+
+                                        Spacer()
+
+                                        Text("\(item.count)×")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundStyle(i == 0 ? accentColor : P.text3)
+                                            .monospacedDigit()
+                                    }
+                                    .padding(.vertical, 10)
+
+                                    if i < stats.topMeetings.count - 1 {
+                                        P.divider.frame(height: 0.5)
+                                    }
                                 }
                             }
                         }
@@ -1017,41 +1084,60 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Stats Helpers
+    // MARK: - Stats Components
 
-    private func statCard(value: String, label: String, icon: String, color: Color) -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 13))
-                .foregroundStyle(color.opacity(0.6))
+    private func heroStat(value: String, label: String, color: Color = .white) -> some View {
+        VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .font(.system(size: 28, weight: .bold, design: .serif))
                 .foregroundStyle(P.text1)
-                .monospacedDigit()
             Text(label)
-                .font(.system(size: 10))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(P.text3)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var heroDivider: some View {
+        Rectangle()
+            .fill(.white.opacity(0.06))
+            .frame(width: 0.5, height: 40)
+    }
+
+    private func statsSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(P.sectionTitle)
+                .padding(.top, 22)
+
+            content()
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(P.rowBg)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(P.rowBorder, lineWidth: 0.5)
+                )
+        }
+    }
+
+    private func focusMetric(value: String, label: String, color: Color = .green) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 20, weight: .bold, design: .serif))
+                .foregroundStyle(color)
+            Text(label)
+                .font(.system(size: 9, weight: .medium))
                 .foregroundStyle(P.text3)
                 .multilineTextAlignment(.center)
                 .lineSpacing(2)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(color.opacity(0.04))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(color.opacity(0.08), lineWidth: 0.5)
-        )
-        .padding(.horizontal, 3)
-    }
-
-    private func wellnessLegend(color: Color, label: String) -> some View {
-        HStack(spacing: 4) {
-            Circle().fill(color.opacity(0.6)).frame(width: 6, height: 6)
-            Text(label).font(.system(size: 8)).foregroundStyle(P.text3)
-        }
+        .padding(.vertical, 8)
     }
 
     private var focusSessionsThisWeek: Int {

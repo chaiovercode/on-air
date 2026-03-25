@@ -126,29 +126,23 @@ struct PopoverView: View {
         )
     }
 
-    // MARK: - Header Toolbar (Dot-style)
+    // MARK: - Header Toolbar
 
     private var headerToolbar: some View {
         HStack(spacing: 0) {
-            // Date + icon
-            HStack(spacing: 6) {
-                Text(timeOfDayEmoji)
-                    .font(.system(size: 12))
-                Text(Date(), format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
-                    .font(.system(size: 12, weight: .medium))
-                    .lineLimit(1)
-                    .fixedSize()
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Date(), format: .dateTime.weekday(.wide))
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.3))
+                    .tracking(1.5)
+                    .textCase(.uppercase)
+                Text(Date(), format: .dateTime.day().month(.wide))
+                    .font(.system(size: 18, weight: .bold, design: .serif))
+                    .foregroundStyle(.white.opacity(0.85))
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(.white.opacity(0.06))
-            )
 
             Spacer()
 
-            // Action buttons
             HStack(spacing: 2) {
                 headerButton(icon: "plus", help: "New Event ⌘N") {
                     NotificationCenter.default.post(name: .toggleNewEvent, object: nil)
@@ -156,7 +150,6 @@ struct PopoverView: View {
                 headerButton(icon: "magnifyingglass", help: "Search ⌘F") {
                     NotificationCenter.default.post(name: .toggleSearch, object: nil)
                 }
-                // Focus button — scrolls to focus timer
                 Button {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         scrollToFocus = true
@@ -165,7 +158,7 @@ struct PopoverView: View {
                     Image(systemName: appState.focusService.isRunning ? "brain.head.profile.fill" : "brain.head.profile")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(appState.focusService.isRunning ? accentRed : .secondary)
-                        .frame(width: 26, height: 24)
+                        .frame(width: 26, height: 26)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -181,11 +174,6 @@ struct PopoverView: View {
                     openSettings()
                 }
             }
-            .padding(3)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(.white.opacity(0.06))
-            )
         }
     }
 
@@ -194,7 +182,7 @@ struct PopoverView: View {
             Image(systemName: icon)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
-                .frame(width: 26, height: 24)
+                .frame(width: 26, height: 26)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -591,27 +579,53 @@ struct PopoverView: View {
     // MARK: - Footer
 
     private var footer: some View {
-        Text(worldClockLine)
-            .font(.system(size: 12, weight: .medium, design: .rounded))
-            .foregroundStyle(Color.white.opacity(0.35))
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
+        let ids = Array(appState.settings.worldClockIds.prefix(3))
+        return HStack(spacing: 0) {
+            ForEach(ids, id: \.self) { tzId in
+                if tzId != ids.first {
+                    Rectangle()
+                        .fill(.white.opacity(0.08))
+                        .frame(width: 0.5, height: 26)
+                }
+                worldClockCell(tzId: tzId)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
     }
 
-    private var worldClockLine: String {
-        appState.settings.worldClockIds.prefix(3).compactMap { tzId -> String? in
-            guard let tz = TimeZone(identifier: tzId) else { return nil }
-            let h = Calendar.current.dateComponents(in: tz, from: Date()).hour ?? 0
-            let icon = (h >= 6 && h < 18) ? "✱" : "☾"
-            let city = String((tz.identifier.components(separatedBy: "/").last ?? "")
-                .replacingOccurrences(of: "_", with: " ").uppercased().prefix(3))
-            let fmt = DateFormatter(); fmt.dateFormat = appState.settings.use24HourTime ? "HH:mm" : "h:mma"; fmt.timeZone = tz
-            let t = String(fmt.string(from: Date()).lowercased().dropLast(1))
-            return "\(icon) \(city) \(t)"
-        }.joined(separator: "  ·  ")
+    private func worldClockCell(tzId: String) -> some View {
+        let tz = TimeZone(identifier: tzId)!
+        let h = Calendar.current.dateComponents(in: tz, from: Date()).hour ?? 0
+        let isDay = h >= 6 && h < 18
+
+        let city = String((tz.identifier.components(separatedBy: "/").last ?? "")
+            .replacingOccurrences(of: "_", with: " ").uppercased().prefix(3))
+
+        let fmt = DateFormatter()
+        fmt.dateFormat = appState.settings.use24HourTime ? "HH:mm" : "h:mma"
+        fmt.timeZone = tz
+        let timeStr = fmt.string(from: Date()).lowercased()
+
+        return HStack(spacing: 6) {
+            Circle()
+                .fill(isDay ? accentRed.opacity(0.6) : .white.opacity(0.12))
+                .overlay(
+                    isDay ? nil : Circle().strokeBorder(.white.opacity(0.2), lineWidth: 0.5)
+                )
+                .frame(width: 5, height: 5)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(city)
+                    .font(.system(size: 8.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.25))
+                    .tracking(1.5)
+                Text(timeStr)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(isDay ? 0.5 : 0.28))
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Actions
