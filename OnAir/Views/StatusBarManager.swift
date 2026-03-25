@@ -88,16 +88,26 @@ final class StatusBarManager: NSObject {
         let panel = popoverPanel ?? createPanel()
         popoverPanel = panel
 
-        // Position below status bar button
+        // Position below status bar button — start offset up for slide-down
         let buttonRect = button.convert(button.bounds, to: nil)
         let screenRect = buttonWindow.convertToScreen(buttonRect)
         let panelW = panel.frame.width
         let x = screenRect.midX - panelW / 2
-        let y = screenRect.minY - panel.frame.height - 6
+        let finalY = screenRect.minY - panel.frame.height - 6
+        let startY = finalY + 12 // Start 12pt higher
 
-        panel.setFrameOrigin(NSPoint(x: x, y: y))
+        panel.setFrameOrigin(NSPoint(x: x, y: startY))
+        panel.alphaValue = 0
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+
+        // Slide down + fade in
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.2
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().setFrameOrigin(NSPoint(x: x, y: finalY))
+            panel.animator().alphaValue = 1
+        }
 
         // Close on outside click
         eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
@@ -211,7 +221,8 @@ final class StatusBarManager: NSObject {
 
     private func hidePopover() {
         dismissOverlay()
-        popoverPanel?.orderOut(nil)
+
+        // Remove monitors immediately so they don't fire during animation
         if let monitor = eventMonitor {
             NSEvent.removeMonitor(monitor)
             eventMonitor = nil
@@ -220,6 +231,19 @@ final class StatusBarManager: NSObject {
             NSEvent.removeMonitor(monitor)
             keyMonitor = nil
         }
+
+        // Slide up + fade out
+        guard let panel = popoverPanel else { return }
+        let finalOrigin = NSPoint(x: panel.frame.origin.x, y: panel.frame.origin.y + 8)
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.15
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().setFrameOrigin(finalOrigin)
+            panel.animator().alphaValue = 0
+        }, completionHandler: { [weak self] in
+            self?.popoverPanel?.orderOut(nil)
+            self?.popoverPanel?.alphaValue = 1 // Reset for next open
+        })
     }
 
     private func observeSettingsNotification() {
