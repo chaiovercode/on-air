@@ -162,6 +162,22 @@ final class StatsService: ObservableObject {
             .map { $0 }
     }
 
+    /// Daily meeting counts for heatmap — returns last 16 weeks (112 days)
+    func heatmapData() -> [Date: Int] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        guard let start = calendar.date(byAdding: .day, value: -111, to: today) else { return [:] }
+
+        var counts = [Date: Int]()
+        for record in records {
+            let day = calendar.startOfDay(for: record.date)
+            if day >= start && day <= today {
+                counts[day, default: 0] += 1
+            }
+        }
+        return counts
+    }
+
     // MARK: - Persistence
 
     private func loadRecords() {

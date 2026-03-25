@@ -344,6 +344,122 @@ struct SettingsView: View {
                         .padding(.vertical, 8)
                     }
                 }
+
+                Section("Booking") {
+                    iconRow("link", "Enable booking page", sub: "Let others book time on your calendar") {
+                        Toggle("", isOn: Binding(
+                            get: { settings.bookingEnabled },
+                            set: { enabled in
+                                settings.bookingEnabled = enabled
+                                if enabled {
+                                    appState.bookingServer.start()
+                                } else {
+                                    appState.bookingServer.stop()
+                                }
+                            }
+                        ))
+                        .toggleStyle(AlwaysOnToggleStyle(color: Color(hex: settings.accentColorHex)))
+                    }
+
+                    if settings.bookingEnabled {
+                        iconRow("person", "Your name", sub: nil) {
+                            TextField("Display name", text: $settings.bookingName)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 13))
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 140)
+                        }
+
+                        iconRow("clock", "Slot duration", sub: nil) {
+                            let durations = [(15,"15m"),(30,"30m"),(45,"45m"),(60,"1h")]
+                            let current = durations.first { $0.0 == settings.bookingSlotMinutes }?.1 ?? "30m"
+                            Menu {
+                                ForEach(durations, id: \.0) { val, label in
+                                    Button(label) { settings.bookingSlotMinutes = val }
+                                }
+                            } label: {
+                                Text(current)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(P.text1)
+                                    .padding(.horizontal, 10).padding(.vertical, 6)
+                                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.white.opacity(0.06)))
+                                    .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(.white.opacity(0.08), lineWidth: 0.5))
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        iconRow("clock.arrow.circlepath", "Available hours", sub: nil) {
+                            HStack(spacing: 4) {
+                                commuteTimePicker(hour: $settings.bookingStartHour, minute: .constant(0))
+                                Text("to").font(.system(size: 11)).foregroundStyle(P.text3)
+                                commuteTimePicker(hour: $settings.bookingEndHour, minute: .constant(0))
+                            }
+                        }
+
+                        // Day pills
+                        HStack(spacing: 4) {
+                            let dayLabels = [(2,"M"),(3,"T"),(4,"W"),(5,"T"),(6,"F"),(7,"S"),(1,"S")]
+                            ForEach(dayLabels, id: \.0) { weekday, label in
+                                Button {
+                                    settings.toggleBookingDay(weekday)
+                                } label: {
+                                    Text(label)
+                                        .font(.system(size: 11, weight: settings.isBookingDay(weekday) ? .bold : .regular))
+                                        .foregroundStyle(settings.isBookingDay(weekday) ? .white : P.text3)
+                                        .frame(width: 28, height: 28)
+                                        .background(
+                                            Circle()
+                                                .fill(settings.isBookingDay(weekday) ? Color(hex: settings.accentColorHex).opacity(0.6) : .white.opacity(0.04))
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+
+                        // Booking URL
+                        HStack(spacing: 8) {
+                            Spacer()
+                            Button {
+                                let url = appState.bookingServer.bookingURL
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(url, forType: .string)
+                            } label: {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "doc.on.doc").font(.system(size: 10))
+                                    Text(appState.bookingServer.bookingURL).font(.system(size: 11, weight: .medium))
+                                }
+                                .foregroundStyle(Color(hex: settings.accentColorHex))
+                                .padding(.horizontal, 12).padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .fill(Color(hex: settings.accentColorHex).opacity(0.08))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .strokeBorder(Color(hex: settings.accentColorHex).opacity(0.15), lineWidth: 0.5)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .help("Click to copy booking URL")
+
+                            Button {
+                                NSWorkspace.shared.open(URL(string: appState.bookingServer.bookingURL)!)
+                            } label: {
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(P.text2)
+                                    .frame(width: 28, height: 28)
+                                    .background(Circle().fill(.white.opacity(0.06)))
+                            }
+                            .buttonStyle(.plain)
+                            .help("Open booking page")
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
             }
             .padding(.horizontal, 24).padding(.vertical, 8)
         }
@@ -935,10 +1051,9 @@ struct SettingsView: View {
                         let dayData = statsWeekDayData
                         let maxCount = max(dayData.map(\.count).max() ?? 1, 1)
 
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             ForEach(Array(dayData.enumerated()), id: \.offset) { _, day in
                                 VStack(spacing: 0) {
-                                    // Bar area
                                     VStack(spacing: 4) {
                                         Spacer(minLength: 0)
 
@@ -948,15 +1063,14 @@ struct SettingsView: View {
                                                 .foregroundStyle(P.text1)
                                         }
 
-                                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                        RoundedRectangle(cornerRadius: 4, style: .continuous)
                                             .fill(day.count > 0 ? accentColor : .white.opacity(0.03))
-                                            .frame(height: day.count > 0
+                                            .frame(width: 24, height: day.count > 0
                                                 ? max(CGFloat(day.count) / CGFloat(maxCount) * 44, 10)
                                                 : 2)
                                     }
                                     .frame(height: 70)
 
-                                    // Day label
                                     Text(day.initial)
                                         .font(.system(size: 11, weight: day.isToday ? .heavy : .medium))
                                         .foregroundStyle(day.isToday ? P.text1 : P.text3)
@@ -970,9 +1084,10 @@ struct SettingsView: View {
                                             }
                                         }
                                 }
-                                .frame(maxWidth: .infinity)
+                                .frame(width: 32)
                             }
                         }
+                        .frame(maxWidth: .infinity)
                         .padding(16)
                         .background(
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -982,6 +1097,11 @@ struct SettingsView: View {
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
                                 .strokeBorder(.white.opacity(0.05), lineWidth: 0.5)
                         )
+                    }
+
+                    // MARK: Calendar Heatmap
+                    if !stats.records.isEmpty {
+                        calendarHeatmap(stats: stats)
                     }
 
                     // MARK: Focus Summary
@@ -1305,6 +1425,118 @@ struct SettingsView: View {
                 .joined(separator: " ")
         }
         return raw
+    }
+
+    // MARK: - Calendar Heatmap
+
+    private func calendarHeatmap(stats: StatsService) -> some View {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let data = stats.heatmapData()
+        let maxCount = max(data.values.max() ?? 1, 1)
+
+        // Build 16 weeks of data, columns = weeks, rows = days (Mon-Sun)
+        let totalDays = 112
+        let startDate = calendar.date(byAdding: .day, value: -(totalDays - 1), to: today)!
+
+        // Align to Monday
+        let startWeekday = calendar.component(.weekday, from: startDate)
+        let mondayOffset = startWeekday == 1 ? -6 : 2 - startWeekday
+        let alignedStart = calendar.date(byAdding: .day, value: mondayOffset, to: startDate)!
+
+        // Calculate total days from aligned start to today
+        let totalAlignedDays = calendar.dateComponents([.day], from: alignedStart, to: today).day! + 1
+        let weeks = (totalAlignedDays + 6) / 7
+
+        return dataTile(title: "Activity", icon: "square.grid.3x3.fill") {
+            VStack(alignment: .leading, spacing: 4) {
+                // Month labels
+                HStack(spacing: 0) {
+                    Text("").frame(width: 17) // spacer for day labels
+                    HStack(spacing: 3) {
+                        ForEach(0..<weeks, id: \.self) { weekIdx in
+                            let weekStart = calendar.date(byAdding: .day, value: weekIdx * 7, to: alignedStart)!
+                            let monthDay = calendar.component(.day, from: weekStart)
+                            let isFirstWeekOfMonth = monthDay <= 7
+
+                            Text(isFirstWeekOfMonth ? shortMonthName(weekStart) : "")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundStyle(P.text3)
+                                .frame(width: 11, alignment: .leading)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+
+                // Grid: rows = 7 days, columns = weeks
+                HStack(spacing: 3) {
+                    // Day labels
+                    VStack(spacing: 3) {
+                        ForEach(0..<7, id: \.self) { dayIdx in
+                            Text(dayIdx % 2 == 0 ? ["M", "", "W", "", "F", "", "S"][dayIdx] : "")
+                                .font(.system(size: 7, weight: .medium))
+                                .foregroundStyle(P.text3)
+                                .frame(width: 14, height: 11)
+                        }
+                    }
+
+                    // Cells
+                    HStack(spacing: 3) {
+                        ForEach(0..<weeks, id: \.self) { weekIdx in
+                            VStack(spacing: 3) {
+                                ForEach(0..<7, id: \.self) { dayIdx in
+                                    let dayOffset = weekIdx * 7 + dayIdx
+                                    let date = calendar.date(byAdding: .day, value: dayOffset, to: alignedStart)!
+                                    let count = data[calendar.startOfDay(for: date)] ?? 0
+                                    let isFuture = date > today
+
+                                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                        .fill(isFuture ? .clear : heatmapColor(count: count, max: maxCount))
+                                        .frame(width: 11, height: 11)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                                .strokeBorder(isFuture ? .white.opacity(0.02) : .clear, lineWidth: 0.5)
+                                        )
+                                }
+                            }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+
+                // Legend
+                HStack(spacing: 4) {
+                    Spacer()
+                    Text("Less")
+                        .font(.system(size: 8))
+                        .foregroundStyle(P.text3)
+                    ForEach([0, 1, 2, 3, 4], id: \.self) { level in
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(heatmapColor(count: level, max: 4))
+                            .frame(width: 11, height: 11)
+                    }
+                    Text("More")
+                        .font(.system(size: 8))
+                        .foregroundStyle(P.text3)
+                }
+                .padding(.top, 4)
+            }
+        }
+    }
+
+    private func heatmapColor(count: Int, max: Int) -> Color {
+        guard count > 0 else { return .white.opacity(0.03) }
+        let ratio = min(Double(count) / Double(max), 1.0)
+        if ratio <= 0.25 { return accentColor.opacity(0.2) }
+        if ratio <= 0.5 { return accentColor.opacity(0.4) }
+        if ratio <= 0.75 { return accentColor.opacity(0.65) }
+        return accentColor
+    }
+
+    private func shortMonthName(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "MMM"
+        return f.string(from: date)
     }
 
     private var tileVerticalDivider: some View {

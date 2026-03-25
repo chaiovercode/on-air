@@ -24,6 +24,7 @@ final class AppState: ObservableObject {
     let countdownPlayer = CountdownPlayer()
     let statsService = StatsService()
     let focusService = FocusService()
+    private(set) lazy var bookingServer = BookingServer(calendarService: calendarService, settings: settings)
 
     // MARK: - Private
 
@@ -68,6 +69,11 @@ final class AppState: ObservableObject {
         // Tick every minute to refresh time-dependent displays (e.g. "Xm left")
         minuteTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.minuteTick += 1 }
+        }
+
+        // Start booking server if enabled
+        if settings.bookingEnabled {
+            bookingServer.start()
         }
     }
 

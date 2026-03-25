@@ -51,7 +51,7 @@ struct AgendaView: View {
                             isPast: true,
                             accentRed: accentRed,
                             use24HourTime: appState.settings.use24HourTime,
-                            hasConflict: appState.hasConflict(event),
+                            hasConflict: day.events.contains { $0.overlaps(with: event) },
                             currentMinute: appState.minuteTick
                         )
                     }
@@ -70,7 +70,7 @@ struct AgendaView: View {
                             isPast: false,
                             accentRed: accentRed,
                             use24HourTime: appState.settings.use24HourTime,
-                            hasConflict: appState.hasConflict(event),
+                            hasConflict: day.events.contains { $0.overlaps(with: event) },
                             currentMinute: appState.minuteTick
                         )
                     }

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		06094EEA1C384ADFCD9463B1 /* StatsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14139CABDE62766288A7ACA4 /* StatsService.swift */; };
+		2E15AC6FF87E679DEA99C207 /* BookingServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D97B5B8CEFD9A47DE132567 /* BookingServer.swift */; };
 		16A2FBE86C19795D7F13E49B /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC9A5BE115AE1D9699283341 /* AppState.swift */; };
 		2662EF5B4FDA8F03E180199F /* FocusSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A7AF1CD4F502EF8BB77A61 /* FocusSession.swift */; };
 		344FE7FFE2587C1DD8BB20FD /* TimeFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701740DBB3DE68808E9FBE76 /* TimeFormatter.swift */; };
@@ -56,6 +57,7 @@
 		0E0C6D5CF9B9EEEF833BCBE0 /* CalendarEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarEvent.swift; sourceTree = "<group>"; };
 		124B8BF5F1D4BF33E6329B80 /* UserSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSettings.swift; sourceTree = "<group>"; };
 		14139CABDE62766288A7ACA4 /* StatsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsService.swift; sourceTree = "<group>"; };
+		2D97B5B8CEFD9A47DE132567 /* BookingServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingServer.swift; sourceTree = "<group>"; };
 		170C81264FFABDA7BD53BFC2 /* StatusBarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarManager.swift; sourceTree = "<group>"; };
 		181ECE2F182B090F550BCDBE /* UserSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSettingsTests.swift; sourceTree = "<group>"; };
 		1C3D0418B0D410109EA16F1B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -193,6 +195,7 @@
 				90D7B7CAAFA1A181350717A3 /* CountdownPlayer.swift */,
 				3B667E9B3C54C006432B1BED /* FocusService.swift */,
 				14139CABDE62766288A7ACA4 /* StatsService.swift */,
+				2D97B5B8CEFD9A47DE132567 /* BookingServer.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -304,6 +307,7 @@
 				800FADC2B0D586CA730A1908 /* SearchView.swift in Sources */,
 				DAA5B0E1EAE8390A19E38A87 /* SettingsView.swift in Sources */,
 				06094EEA1C384ADFCD9463B1 /* StatsService.swift in Sources */,
+				2E15AC6FF87E679DEA99C207 /* BookingServer.swift in Sources */,
 				C872FED0F08B4B78F55F95B3 /* StatsView.swift in Sources */,
 				7D559504E93BB0C1AEA0E089 /* StatusBarManager.swift in Sources */,
 				344FE7FFE2587C1DD8BB20FD /* TimeFormatter.swift in Sources */,

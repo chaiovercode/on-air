@@ -54,6 +54,17 @@ final class UserSettings: ObservableObject {
            let days = try? JSONDecoder().decode(Set<Int>.self, from: data) {
             self._commuteDays = days
         }
+        self.bookingEnabled = defaults.bool(forKey: "bookingEnabled")
+        self.bookingName = defaults.string(forKey: "bookingName") ?? ""
+        self.bookingStartHour = defaults.object(forKey: "bookingStartHour") as? Int ?? 9
+        self.bookingEndHour = defaults.object(forKey: "bookingEndHour") as? Int ?? 17
+        self.bookingSlotMinutes = defaults.object(forKey: "bookingSlotMinutes") as? Int ?? 30
+        self.bookingBufferMinutes = defaults.object(forKey: "bookingBufferMinutes") as? Int ?? 10
+        self.bookingDaysAhead = defaults.object(forKey: "bookingDaysAhead") as? Int ?? 14
+        if let data = defaults.data(forKey: "bookingDays"),
+           let days = try? JSONDecoder().decode(Set<Int>.self, from: data) {
+            self._bookingDays = days
+        }
         self.showLongWeekends = defaults.bool(forKey: "showLongWeekends")
         if let data = defaults.data(forKey: "dismissedHolidayDates"),
            let dates = try? JSONDecoder().decode(Set<String>.self, from: data) {
@@ -198,6 +209,60 @@ final class UserSettings: ObservableObject {
         guard let start = cal.date(bySettingHour: eveningCommuteHour, minute: eveningCommuteMinute, second: 0, of: Date()),
               let end = cal.date(byAdding: .minute, value: commuteDurationMinutes, to: start) else { return nil }
         return (start, end)
+    }
+
+    // MARK: - Booking (Calendly)
+
+    @Published var bookingEnabled: Bool = false {
+        didSet { defaults.set(bookingEnabled, forKey: "bookingEnabled") }
+    }
+
+    @Published var bookingName: String = "" {
+        didSet { defaults.set(bookingName, forKey: "bookingName") }
+    }
+
+    @Published var bookingStartHour: Int = 9 {
+        didSet { defaults.set(bookingStartHour, forKey: "bookingStartHour") }
+    }
+
+    @Published var bookingEndHour: Int = 17 {
+        didSet { defaults.set(bookingEndHour, forKey: "bookingEndHour") }
+    }
+
+    @Published var bookingSlotMinutes: Int = 30 {
+        didSet { defaults.set(bookingSlotMinutes, forKey: "bookingSlotMinutes") }
+    }
+
+    @Published var bookingBufferMinutes: Int = 10 {
+        didSet { defaults.set(bookingBufferMinutes, forKey: "bookingBufferMinutes") }
+    }
+
+    @Published var bookingDaysAhead: Int = 14 {
+        didSet { defaults.set(bookingDaysAhead, forKey: "bookingDaysAhead") }
+    }
+
+    @Published private var _bookingDays: Set<Int> = [2, 3, 4, 5, 6] {
+        didSet {
+            let data = try? JSONEncoder().encode(_bookingDays)
+            defaults.set(data, forKey: "bookingDays")
+        }
+    }
+
+    var bookingDays: Set<Int> {
+        get { _bookingDays }
+        set { _bookingDays = newValue }
+    }
+
+    func isBookingDay(_ weekday: Int) -> Bool {
+        _bookingDays.contains(weekday)
+    }
+
+    func toggleBookingDay(_ weekday: Int) {
+        if _bookingDays.contains(weekday) {
+            _bookingDays.remove(weekday)
+        } else {
+            _bookingDays.insert(weekday)
+        }
     }
 
     // MARK: - Long Weekends
