@@ -88,29 +88,26 @@ final class StatusBarManager: NSObject {
         let panel = popoverPanel ?? createPanel()
         popoverPanel = panel
 
-        // Position below status bar button
+        // Position: top edge flush with bottom of menu bar button
         let buttonRect = button.convert(button.bounds, to: nil)
         let screenRect = buttonWindow.convertToScreen(buttonRect)
-        let panelW: CGFloat = 300
-        let panelH: CGFloat = 700
+        let panelW = panel.frame.width
+        let panelH = panel.frame.height
         let x = screenRect.midX - panelW / 2
-        let topY = screenRect.minY - 6 // Top edge stays fixed near menu bar
+        let topEdgeY = screenRect.minY  // bottom of menu bar button
+        let finalY = topEdgeY - panelH - 4
 
-        // Start with zero height at the top edge, animate height downward
-        panel.setFrame(NSRect(x: x, y: topY, width: panelW, height: 0), display: false)
+        // Start: only top sliver visible (panel mostly hidden above)
+        let startFrame = NSRect(x: x, y: topEdgeY - 1, width: panelW, height: panelH)
+        let finalFrame = NSRect(x: x, y: finalY, width: panelW, height: panelH)
+
+        panel.setFrame(startFrame, display: false)
         panel.alphaValue = 1
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
-        // Animate: grow height downward (top edge stays, bottom drops)
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.28
-            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            panel.animator().setFrame(
-                NSRect(x: x, y: topY - panelH, width: panelW, height: panelH),
-                display: true
-            )
-        }
+        // Animate slide down
+        panel.setFrame(finalFrame, display: true, animate: true)
 
         // Close on outside click
         eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
@@ -235,21 +232,8 @@ final class StatusBarManager: NSObject {
             keyMonitor = nil
         }
 
-        // Shrink upward — top edge stays, height goes to 0
         guard let panel = popoverPanel else { return }
-        let topY = panel.frame.maxY
-        let x = panel.frame.origin.x
-        let w = panel.frame.width
-        NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.2
-            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            panel.animator().setFrame(
-                NSRect(x: x, y: topY, width: w, height: 0),
-                display: true
-            )
-        }, completionHandler: { [weak self] in
-            self?.popoverPanel?.orderOut(nil)
-        })
+        panel.orderOut(nil)
     }
 
     private func observeSettingsNotification() {
