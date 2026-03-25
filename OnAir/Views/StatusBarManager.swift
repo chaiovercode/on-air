@@ -97,9 +97,9 @@ final class StatusBarManager: NSObject {
         let menuBarBottom = screenRect.minY // bottom edge of menu bar button
         let finalY = menuBarBottom - panelH - 4
 
-        // Start with top edge just below menu bar (panel.origin.y = menuBarBottom - panelH)
-        // means top edge is at menuBarBottom. Then animate origin down to finalY.
-        let startFrame = NSRect(x: x, y: menuBarBottom - panelH, width: panelW, height: panelH)
+        // Start tucked up behind menu bar, slide down to final position
+        let startY = menuBarBottom - panelH + 40 // 40pt higher than final = visible slide
+        let startFrame = NSRect(x: x, y: startY, width: panelW, height: panelH)
         let finalFrame = NSRect(x: x, y: finalY, width: panelW, height: panelH)
 
         panel.setFrame(startFrame, display: false)
