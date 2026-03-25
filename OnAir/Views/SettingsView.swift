@@ -986,82 +986,62 @@ struct SettingsView: View {
                         }
                     }
 
-                    // MARK: Two-column tiles
+                    // MARK: Breakdown
                     HStack(alignment: .top, spacing: 12) {
-                        // Busiest Days
                         if !stats.busiestDays.isEmpty {
                             dataTile(title: "Busiest Days", icon: "calendar") {
-                                VStack(spacing: 6) {
+                                VStack(spacing: 10) {
                                     ForEach(stats.busiestDays.prefix(5), id: \.dayOfWeek) { day in
-                                        HStack(spacing: 8) {
-                                            Text(String(day.dayOfWeek.prefix(3)))
-                                                .font(.system(size: 11, weight: .semibold))
-                                                .foregroundStyle(P.text2)
-                                                .frame(width: 28, alignment: .leading)
-
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            HStack {
+                                                Text(day.dayOfWeek)
+                                                    .font(.system(size: 12, weight: .semibold))
+                                                    .foregroundStyle(P.text1)
+                                                Spacer()
+                                                Text("\(day.count) meeting\(day.count == 1 ? "" : "s")")
+                                                    .font(.system(size: 10))
+                                                    .foregroundStyle(P.text3)
+                                            }
                                             GeometryReader { geo in
                                                 ZStack(alignment: .leading) {
-                                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
                                                         .fill(.white.opacity(0.04))
-                                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                                        .fill(
-                                                            LinearGradient(
-                                                                colors: [accentColor.opacity(0.5), accentColor.opacity(0.8)],
-                                                                startPoint: .leading,
-                                                                endPoint: .trailing
-                                                            )
-                                                        )
-                                                        .frame(width: max(geo.size.width * day.percentage / 100, 4))
+                                                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                                                        .fill(accentColor.opacity(0.65))
+                                                        .frame(width: max(geo.size.width * day.percentage / 100, 6))
                                                 }
                                             }
-                                            .frame(height: 10)
-
-                                            Text("\(Int(day.percentage))%")
-                                                .font(.system(size: 10, weight: .medium))
-                                                .foregroundStyle(P.text3)
-                                                .monospacedDigit()
-                                                .frame(width: 28, alignment: .trailing)
+                                            .frame(height: 5)
                                         }
                                     }
                                 }
                             }
                         }
 
-                        // Platforms
                         if !stats.platformBreakdown.isEmpty {
                             dataTile(title: "Platforms", icon: "video.fill") {
-                                VStack(spacing: 6) {
+                                VStack(spacing: 10) {
                                     ForEach(stats.platformBreakdown, id: \.platform) { item in
-                                        HStack(spacing: 8) {
-                                            Text(item.platform)
-                                                .font(.system(size: 11, weight: .semibold))
-                                                .foregroundStyle(P.text2)
-                                                .lineLimit(1)
-
-                                            Spacer()
-
-                                            Text("\(Int(item.percentage))%")
-                                                .font(.system(size: 10, weight: .medium))
-                                                .foregroundStyle(P.text3)
-                                                .monospacedDigit()
-                                        }
-                                        HStack(spacing: 0) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            HStack {
+                                                Text(item.platform)
+                                                    .font(.system(size: 12, weight: .semibold))
+                                                    .foregroundStyle(P.text1)
+                                                Spacer()
+                                                Text("\(item.count) meeting\(item.count == 1 ? "" : "s")")
+                                                    .font(.system(size: 10))
+                                                    .foregroundStyle(P.text3)
+                                            }
                                             GeometryReader { geo in
                                                 ZStack(alignment: .leading) {
-                                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
                                                         .fill(.white.opacity(0.04))
-                                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                                        .fill(
-                                                            LinearGradient(
-                                                                colors: [Color(red: 0.35, green: 0.55, blue: 1.0).opacity(0.5), Color(red: 0.35, green: 0.55, blue: 1.0).opacity(0.8)],
-                                                                startPoint: .leading,
-                                                                endPoint: .trailing
-                                                            )
-                                                        )
-                                                        .frame(width: max(geo.size.width * item.percentage / 100, 4))
+                                                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                                                        .fill(Color(red: 0.35, green: 0.55, blue: 1.0).opacity(0.65))
+                                                        .frame(width: max(geo.size.width * item.percentage / 100, 6))
                                                 }
                                             }
-                                            .frame(height: 10)
+                                            .frame(height: 5)
                                         }
                                     }
                                 }
@@ -1106,7 +1086,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .frame(maxWidth: 520)
+                .frame(maxWidth: 480)
                 .padding(.horizontal, 24).padding(.vertical, 8)
             }
         }
