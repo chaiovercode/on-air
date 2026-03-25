@@ -118,8 +118,16 @@ struct PopoverView: View {
             ZStack {
                 Color(red: 0.071, green: 0.063, blue: 0.043)
                 VStack {
-                    LinearGradient(stops: topGradientStops, startPoint: .top, endPoint: .bottom)
-                        .frame(height: 220)
+                    LinearGradient(
+                        stops: [
+                            .init(color: accentRed.opacity(0.15), location: 0),
+                            .init(color: accentRed.opacity(0.05), location: 0.4),
+                            .init(color: .clear, location: 1.0)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 200)
                     Spacer()
                 }
             }
@@ -483,39 +491,6 @@ struct PopoverView: View {
         appState.todayEvents.contains { $0.endDate > Date() }
     }
 
-    private var topGradientStops: [Gradient.Stop] {
-        let hour = Calendar.current.component(.hour, from: Date())
-        if hour >= 20 || hour < 5 {
-            // Night — cool neutral
-            return [
-                .init(color: Color.white.opacity(0.06), location: 0),
-                .init(color: Color.white.opacity(0.02), location: 0.4),
-                .init(color: .clear, location: 1.0)
-            ]
-        } else if hour >= 5 && hour < 8 {
-            // Dawn — subtle warm
-            return [
-                .init(color: Color(red: 0.20, green: 0.15, blue: 0.10).opacity(0.5), location: 0),
-                .init(color: Color(red: 0.15, green: 0.12, blue: 0.08).opacity(0.2), location: 0.4),
-                .init(color: .clear, location: 1.0)
-            ]
-        } else if hour >= 8 && hour < 17 {
-            // Day — very subtle warm tint
-            return [
-                .init(color: Color(red: 0.15, green: 0.13, blue: 0.08).opacity(0.4), location: 0),
-                .init(color: Color(red: 0.12, green: 0.10, blue: 0.06).opacity(0.15), location: 0.4),
-                .init(color: .clear, location: 1.0)
-            ]
-        } else {
-            // Evening — cool neutral
-            return [
-                .init(color: Color(red: 0.10, green: 0.08, blue: 0.14).opacity(0.5), location: 0),
-                .init(color: Color(red: 0.08, green: 0.06, blue: 0.10).opacity(0.2), location: 0.4),
-                .init(color: .clear, location: 1.0)
-            ]
-        }
-    }
-
     private var allClearMessage: String {
         let hour = Calendar.current.component(.hour, from: Date())
         if hour >= 18 { return "All clear for the night." }
@@ -529,12 +504,6 @@ struct PopoverView: View {
 
     private var userProfileImage: NSImage? {
         CBIdentity(name: NSUserName(), authority: .local())?.image
-    }
-
-    private var timeOfDayEmoji: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        if hour >= 6 && hour < 18 { return "✱" }
-        return "☾"
     }
 
     // MARK: - Calendar Access
