@@ -88,25 +88,28 @@ final class StatusBarManager: NSObject {
         let panel = popoverPanel ?? createPanel()
         popoverPanel = panel
 
-        // Position below status bar button — start offset up for slide-down
+        // Position below status bar button
         let buttonRect = button.convert(button.bounds, to: nil)
         let screenRect = buttonWindow.convertToScreen(buttonRect)
-        let panelW = panel.frame.width
+        let panelW: CGFloat = 300
+        let panelH: CGFloat = 700
         let x = screenRect.midX - panelW / 2
-        let finalY = screenRect.minY - panel.frame.height - 6
-        let startY = finalY + 12 // Start 12pt higher
+        let topY = screenRect.minY - 6 // Top edge stays fixed near menu bar
 
-        panel.setFrameOrigin(NSPoint(x: x, y: startY))
-        panel.alphaValue = 0
+        // Start with zero height at the top edge, animate height downward
+        panel.setFrame(NSRect(x: x, y: topY, width: panelW, height: 0), display: false)
+        panel.alphaValue = 1
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
-        // Slide down + fade in
+        // Animate: grow height downward (top edge stays, bottom drops)
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.2
+            ctx.duration = 0.28
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            panel.animator().setFrameOrigin(NSPoint(x: x, y: finalY))
-            panel.animator().alphaValue = 1
+            panel.animator().setFrame(
+                NSRect(x: x, y: topY - panelH, width: panelW, height: panelH),
+                display: true
+            )
         }
 
         // Close on outside click
@@ -232,17 +235,20 @@ final class StatusBarManager: NSObject {
             keyMonitor = nil
         }
 
-        // Slide up + fade out
+        // Shrink upward — top edge stays, height goes to 0
         guard let panel = popoverPanel else { return }
-        let finalOrigin = NSPoint(x: panel.frame.origin.x, y: panel.frame.origin.y + 8)
+        let topY = panel.frame.maxY
+        let x = panel.frame.origin.x
+        let w = panel.frame.width
         NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.15
+            ctx.duration = 0.2
             ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            panel.animator().setFrameOrigin(finalOrigin)
-            panel.animator().alphaValue = 0
+            panel.animator().setFrame(
+                NSRect(x: x, y: topY, width: w, height: 0),
+                display: true
+            )
         }, completionHandler: { [weak self] in
             self?.popoverPanel?.orderOut(nil)
-            self?.popoverPanel?.alphaValue = 1 // Reset for next open
         })
     }
 

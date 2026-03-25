@@ -486,43 +486,31 @@ struct PopoverView: View {
     private var topGradientStops: [Gradient.Stop] {
         let hour = Calendar.current.component(.hour, from: Date())
         if hour >= 20 || hour < 5 {
-            // Night — deep indigo/navy
+            // Night — cool neutral
             return [
-                .init(color: Color(red: 0.08, green: 0.08, blue: 0.22).opacity(0.9), location: 0),
-                .init(color: Color(red: 0.06, green: 0.06, blue: 0.16).opacity(0.5), location: 0.35),
-                .init(color: Color(red: 0.05, green: 0.05, blue: 0.10).opacity(0.2), location: 0.6),
+                .init(color: Color.white.opacity(0.06), location: 0),
+                .init(color: Color.white.opacity(0.02), location: 0.4),
                 .init(color: .clear, location: 1.0)
             ]
         } else if hour >= 5 && hour < 8 {
-            // Dawn — soft pink/orange horizon
+            // Dawn — subtle warm
             return [
-                .init(color: Color(red: 0.35, green: 0.15, blue: 0.18).opacity(0.8), location: 0),
-                .init(color: Color(red: 0.30, green: 0.18, blue: 0.10).opacity(0.4), location: 0.35),
-                .init(color: Color(red: 0.20, green: 0.12, blue: 0.06).opacity(0.15), location: 0.6),
+                .init(color: Color(red: 0.20, green: 0.15, blue: 0.10).opacity(0.5), location: 0),
+                .init(color: Color(red: 0.15, green: 0.12, blue: 0.08).opacity(0.2), location: 0.4),
                 .init(color: .clear, location: 1.0)
             ]
-        } else if hour >= 8 && hour < 12 {
-            // Morning — warm golden
+        } else if hour >= 8 && hour < 17 {
+            // Day — very subtle warm tint
             return [
-                .init(color: Color(red: 0.32, green: 0.24, blue: 0.08).opacity(0.7), location: 0),
-                .init(color: Color(red: 0.24, green: 0.18, blue: 0.06).opacity(0.35), location: 0.35),
-                .init(color: Color(red: 0.16, green: 0.12, blue: 0.04).opacity(0.12), location: 0.6),
-                .init(color: .clear, location: 1.0)
-            ]
-        } else if hour >= 12 && hour < 17 {
-            // Afternoon — warm amber
-            return [
-                .init(color: Color(red: 0.30, green: 0.20, blue: 0.08).opacity(0.7), location: 0),
-                .init(color: Color(red: 0.22, green: 0.15, blue: 0.06).opacity(0.35), location: 0.35),
-                .init(color: Color(red: 0.14, green: 0.10, blue: 0.04).opacity(0.12), location: 0.6),
+                .init(color: Color(red: 0.15, green: 0.13, blue: 0.08).opacity(0.4), location: 0),
+                .init(color: Color(red: 0.12, green: 0.10, blue: 0.06).opacity(0.15), location: 0.4),
                 .init(color: .clear, location: 1.0)
             ]
         } else {
-            // Evening — dusky purple/blue
+            // Evening — cool neutral
             return [
-                .init(color: Color(red: 0.14, green: 0.10, blue: 0.24).opacity(0.85), location: 0),
-                .init(color: Color(red: 0.10, green: 0.08, blue: 0.18).opacity(0.4), location: 0.35),
-                .init(color: Color(red: 0.07, green: 0.06, blue: 0.12).opacity(0.15), location: 0.6),
+                .init(color: Color(red: 0.10, green: 0.08, blue: 0.14).opacity(0.5), location: 0),
+                .init(color: Color(red: 0.08, green: 0.06, blue: 0.10).opacity(0.2), location: 0.4),
                 .init(color: .clear, location: 1.0)
             ]
         }
