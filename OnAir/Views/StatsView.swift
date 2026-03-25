@@ -5,6 +5,8 @@ struct StatsView: View {
     @ObservedObject var statsService: StatsService
 
     private let accent = Color(red: 0.9, green: 0.25, blue: 0.2)
+    private let blue = Color(red: 0.35, green: 0.55, blue: 1.0)
+    private let amber = Color(red: 1.0, green: 0.6, blue: 0.2)
     private let cardFill = Color.white.opacity(0.035)
     private let cardBorder = Color.white.opacity(0.055)
 
@@ -14,22 +16,13 @@ struct StatsView: View {
         } else {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 10) {
-                    // Hero row — 3 stat cards
                     heroRow
-
-                    // Two-column layout
+                    weekStrip
                     HStack(alignment: .top, spacing: 10) {
-                        // Left column
-                        VStack(spacing: 10) {
-                            busiestDays
-                            peakHours
-                        }
-                        // Right column
-                        VStack(spacing: 10) {
-                            platforms
-                            topMeetings
-                        }
+                        peakHours
+                        platforms
                     }
+                    topMeetings
                 }
                 .padding(16)
             }
@@ -43,13 +36,11 @@ struct StatsView: View {
             Spacer()
 
             ZStack {
-                // Glow
                 Circle()
                     .fill(accent.opacity(0.08))
                     .frame(width: 100, height: 100)
                     .blur(radius: 25)
 
-                // Icon ring
                 Circle()
                     .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
                     .frame(width: 72, height: 72)
@@ -87,16 +78,16 @@ struct StatsView: View {
                 color: accent
             )
             heroCard(
-                value: "\(statsService.meetingsThisMonth)",
-                label: "THIS MONTH",
-                icon: "calendar",
-                color: Color(red: 0.35, green: 0.55, blue: 1.0)
+                value: statsService.hoursThisWeekDisplay,
+                label: "HOURS",
+                icon: "clock.fill",
+                color: amber
             )
             heroCard(
-                value: statsService.totalHoursDisplay,
-                label: "TOTAL TIME",
-                icon: "clock.fill",
-                color: Color(red: 1.0, green: 0.6, blue: 0.2)
+                value: statsService.avgDurationDisplay,
+                label: "AVG LENGTH",
+                icon: "timer",
+                color: blue
             )
         }
     }
@@ -127,7 +118,6 @@ struct StatsView: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(cardFill)
 
-                // Subtle color tint at top
                 VStack {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(
@@ -149,16 +139,102 @@ struct StatsView: View {
         )
     }
 
-    // MARK: - Busiest Days
+    // MARK: - Week Strip
 
-    private var busiestDays: some View {
-        sectionCard(title: "BUSIEST DAYS", icon: "calendar") {
+    private var weekStrip: some View {
+        sectionCard(title: "THIS WEEK", icon: "calendar") {
+            let dayData = weekDayData()
+            let maxCount = dayData.map(\.count).max() ?? 1
+
+            HStack(spacing: 0) {
+                ForEach(Array(dayData.enumerated()), id: \.offset) { _, day in
+                    VStack(spacing: 6) {
+                        // Bar
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(
+                                day.count > 0
+                                    ? LinearGradient(
+                                        colors: [accent.opacity(0.5), accent],
+                                        startPoint: .bottom,
+                                        endPoint: .top
+                                    )
+                                    : LinearGradient(
+                                        colors: [Color.white.opacity(0.04), Color.white.opacity(0.04)],
+                                        startPoint: .bottom,
+                                        endPoint: .top
+                                    )
+                            )
+                            .frame(
+                                height: day.count > 0
+                                    ? max(CGFloat(day.count) / CGFloat(maxCount) * 32, 6)
+                                    : 4
+                            )
+                            .frame(maxHeight: 32, alignment: .bottom)
+
+                        // Count (only if > 0)
+                        Text(day.count > 0 ? "\(day.count)" : "")
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .foregroundStyle(day.count > 0 ? accent : .clear)
+                            .frame(height: 12)
+
+                        // Day label
+                        Text(day.initial)
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(
+                                day.isToday
+                                    ? Color.white.opacity(0.8)
+                                    : Color.white.opacity(0.25)
+                            )
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+    }
+
+    private struct DayInfo {
+        let initial: String
+        let count: Int
+        let isToday: Bool
+    }
+
+    private func weekDayData() -> [DayInfo] {
+        let calendar = Calendar.current
+        let today = Date()
+        guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: today) else {
+            return []
+        }
+
+        let initials = ["M", "T", "W", "T", "F", "S", "S"]
+        let todayWeekday = calendar.component(.weekday, from: today)
+
+        // Build counts per weekday (Mon=0 ... Sun=6)
+        let weekRecords = statsService.records.filter { $0.date >= weekInterval.start }
+        var counts = [Int](repeating: 0, count: 7)
+        for record in weekRecords {
+            let wd = calendar.component(.weekday, from: record.date)
+            // Convert: Sunday=1 → index 6, Monday=2 → index 0, etc.
+            let index = wd == 1 ? 6 : wd - 2
+            counts[index] += 1
+        }
+
+        let todayIndex = todayWeekday == 1 ? 6 : todayWeekday - 2
+
+        return (0..<7).map { i in
+            DayInfo(initial: initials[i], count: counts[i], isToday: i == todayIndex)
+        }
+    }
+
+    // MARK: - Peak Hours
+
+    private var peakHours: some View {
+        sectionCard(title: "PEAK HOURS", icon: "clock.fill") {
             VStack(spacing: 5) {
-                ForEach(statsService.busiestDays.prefix(5), id: \.dayOfWeek) { day in
+                ForEach(statsService.peakHours.prefix(4), id: \.hour) { item in
                     statBar(
-                        label: String(day.dayOfWeek.prefix(3)),
-                        value: day.percentage,
-                        color: accent
+                        label: item.hour,
+                        value: item.percentage,
+                        color: amber
                     )
                 }
             }
@@ -174,23 +250,7 @@ struct StatsView: View {
                     statBar(
                         label: item.platform,
                         value: item.percentage,
-                        color: Color(red: 0.35, green: 0.55, blue: 1.0)
-                    )
-                }
-            }
-        }
-    }
-
-    // MARK: - Peak Hours
-
-    private var peakHours: some View {
-        sectionCard(title: "PEAK HOURS", icon: "clock.fill") {
-            VStack(spacing: 5) {
-                ForEach(statsService.peakHours.prefix(4), id: \.hour) { item in
-                    statBar(
-                        label: item.hour,
-                        value: item.percentage,
-                        color: Color(red: 1.0, green: 0.6, blue: 0.2)
+                        color: blue
                     )
                 }
             }
@@ -204,7 +264,6 @@ struct StatsView: View {
             VStack(spacing: 0) {
                 ForEach(Array(statsService.topMeetings.enumerated()), id: \.element.title) { index, item in
                     HStack(spacing: 10) {
-                        // Rank badge
                         Text("\(index + 1)")
                             .font(.system(size: 9, weight: .heavy, design: .rounded))
                             .foregroundStyle(index == 0 ? accent : Color.white.opacity(0.25))
@@ -221,7 +280,7 @@ struct StatsView: View {
 
                         Spacer()
 
-                        Text("\(item.count)×")
+                        Text("\(item.count)\u{00D7}")
                             .font(.system(size: 12, weight: .bold, design: .rounded))
                             .foregroundStyle(Color.white.opacity(0.35))
                             .monospacedDigit()
@@ -244,7 +303,6 @@ struct StatsView: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header
             HStack(spacing: 5) {
                 Image(systemName: icon)
                     .font(.system(size: 9, weight: .semibold))
@@ -279,11 +337,9 @@ struct StatsView: View {
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    // Track
                     Capsule()
                         .fill(Color.white.opacity(0.04))
 
-                    // Fill
                     Capsule()
                         .fill(
                             LinearGradient(

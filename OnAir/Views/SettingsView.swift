@@ -877,6 +877,8 @@ struct SettingsView: View {
         let stats = appState.statsService
         let focus = appState.focusService
         let hasData = !stats.records.isEmpty || focus.totalSessions > 0
+        let amber = Color(red: 1.0, green: 0.6, blue: 0.2)
+        let blue = Color(red: 0.35, green: 0.55, blue: 1.0)
 
         return ScrollView(.vertical, showsIndicators: false) {
             if !hasData {
@@ -896,77 +898,74 @@ struct SettingsView: View {
             } else {
                 VStack(alignment: .leading, spacing: 16) {
 
-                    // MARK: Ring Cards
+                    // MARK: Hero Cards
                     HStack(spacing: 12) {
-                        ringCard(
-                            value: Double(stats.meetingsThisWeek),
-                            max: max(Double(stats.meetingsThisWeek), 10),
-                            label: "Meetings",
-                            sublabel: "this week",
-                            displayValue: "\(stats.meetingsThisWeek)",
+                        heroCard(
+                            value: "\(stats.meetingsThisWeek)",
+                            label: "THIS WEEK",
+                            icon: "flame.fill",
                             color: accentColor
                         )
-                        ringCard(
-                            value: stats.totalHours,
-                            max: max(stats.totalHours, 20),
-                            label: "Total",
-                            sublabel: stats.totalHoursDisplay,
-                            displayValue: stats.totalHoursDisplay,
-                            color: Color(red: 1.0, green: 0.6, blue: 0.2)
+                        heroCard(
+                            value: stats.hoursThisWeekDisplay,
+                            label: "HOURS",
+                            icon: "clock.fill",
+                            color: amber
                         )
                         if focus.totalSessions > 0 {
-                            ringCard(
-                                value: focus.completionRate * 100,
-                                max: 100,
-                                label: "Focus",
-                                sublabel: "\(Int(focus.completionRate * 100))%",
-                                displayValue: "\(Int(focus.completionRate * 100))%",
+                            heroCard(
+                                value: "\(Int(focus.completionRate * 100))%",
+                                label: "FOCUS",
+                                icon: "brain.head.profile",
                                 color: .green
                             )
                         } else {
-                            ringCard(
-                                value: Double(stats.meetingsThisMonth),
-                                max: max(Double(stats.meetingsThisMonth), 20),
-                                label: "Monthly",
-                                sublabel: "meetings",
-                                displayValue: "\(stats.meetingsThisMonth)",
-                                color: Color(red: 0.35, green: 0.55, blue: 1.0)
+                            heroCard(
+                                value: stats.avgDurationDisplay,
+                                label: "AVG LENGTH",
+                                icon: "timer",
+                                color: blue
                             )
                         }
                     }
                     .padding(.top, 16)
 
-                    // MARK: Weekly Activity
+                    // MARK: Week Strip
                     if !stats.records.isEmpty {
-                        dataTile(title: "Weekly Activity", icon: "chart.bar.fill") {
-                            let wellnessData = weekWellness
-                            HStack(alignment: .bottom, spacing: 5) {
-                                ForEach(Array(wellnessData.enumerated()), id: \.offset) { _, item in
-                                    VStack(spacing: 5) {
-                                        if item.hours > 0 {
-                                            Text(String(format: "%.1f", item.hours))
-                                                .font(.system(size: 8, weight: .semibold))
-                                                .foregroundStyle(item.color.opacity(0.8))
-                                        }
-                                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                            .fill(
-                                                LinearGradient(
-                                                    colors: [item.color.opacity(0.85), item.color.opacity(0.35)],
-                                                    startPoint: .top,
-                                                    endPoint: .bottom
-                                                )
-                                            )
-                                            .frame(height: max(CGFloat(item.hours) / 8.0 * 90, item.hours > 0 ? 8 : 3))
-                                            .shadow(color: item.color.opacity(0.2), radius: 4, y: 2)
+                        dataTile(title: "This Week", icon: "calendar") {
+                            let dayData = statsWeekDayData
+                            let maxCount = max(dayData.map(\.count).max() ?? 1, 1)
 
-                                        Text(item.day)
-                                            .font(.system(size: 10, weight: .semibold))
-                                            .foregroundStyle(P.text3)
+                            HStack(spacing: 6) {
+                                ForEach(Array(dayData.enumerated()), id: \.offset) { _, day in
+                                    VStack(spacing: 5) {
+                                        // Count label
+                                        Text(day.count > 0 ? "\(day.count)" : "")
+                                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                                            .foregroundStyle(P.text2)
+                                            .frame(height: 14)
+
+                                        // Bar
+                                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                            .fill(day.count > 0 ? accentColor : .white.opacity(0.04))
+                                            .frame(height: day.count > 0
+                                                ? max(CGFloat(day.count) / CGFloat(maxCount) * 52, 8)
+                                                : 3)
+                                            .frame(maxHeight: 52, alignment: .bottom)
+
+                                        // Day label
+                                        Text(day.initial)
+                                            .font(.system(size: 10, weight: day.isToday ? .bold : .medium))
+                                            .foregroundStyle(day.isToday ? P.text1 : P.text3)
+                                            .frame(width: 22, height: 22)
+                                            .background(
+                                                Circle()
+                                                    .fill(day.isToday ? .white.opacity(0.06) : .clear)
+                                            )
                                     }
                                     .frame(maxWidth: .infinity)
                                 }
                             }
-                            .frame(height: 130, alignment: .bottom)
                         }
                     }
 
@@ -988,31 +987,15 @@ struct SettingsView: View {
 
                     // MARK: Breakdown
                     HStack(alignment: .top, spacing: 12) {
-                        if !stats.busiestDays.isEmpty {
-                            dataTile(title: "Busiest Days", icon: "calendar") {
+                        if !stats.peakHours.isEmpty {
+                            dataTile(title: "Peak Hours", icon: "clock.fill") {
                                 VStack(spacing: 10) {
-                                    ForEach(stats.busiestDays.prefix(5), id: \.dayOfWeek) { day in
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            HStack {
-                                                Text(day.dayOfWeek)
-                                                    .font(.system(size: 12, weight: .semibold))
-                                                    .foregroundStyle(P.text1)
-                                                Spacer()
-                                                Text("\(day.count) meeting\(day.count == 1 ? "" : "s")")
-                                                    .font(.system(size: 10))
-                                                    .foregroundStyle(P.text3)
-                                            }
-                                            GeometryReader { geo in
-                                                ZStack(alignment: .leading) {
-                                                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                                                        .fill(.white.opacity(0.04))
-                                                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                                                        .fill(accentColor.opacity(0.65))
-                                                        .frame(width: max(geo.size.width * day.percentage / 100, 6))
-                                                }
-                                            }
-                                            .frame(height: 5)
-                                        }
+                                    ForEach(stats.peakHours.prefix(4), id: \.hour) { item in
+                                        statsBreakdownRow(
+                                            label: item.hour,
+                                            percentage: item.percentage,
+                                            color: amber
+                                        )
                                     }
                                 }
                             }
@@ -1022,128 +1005,176 @@ struct SettingsView: View {
                             dataTile(title: "Platforms", icon: "video.fill") {
                                 VStack(spacing: 10) {
                                     ForEach(stats.platformBreakdown, id: \.platform) { item in
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            HStack {
-                                                Text(item.platform)
-                                                    .font(.system(size: 12, weight: .semibold))
-                                                    .foregroundStyle(P.text1)
-                                                Spacer()
-                                                Text("\(item.count) meeting\(item.count == 1 ? "" : "s")")
-                                                    .font(.system(size: 10))
-                                                    .foregroundStyle(P.text3)
-                                            }
-                                            GeometryReader { geo in
-                                                ZStack(alignment: .leading) {
-                                                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                                                        .fill(.white.opacity(0.04))
-                                                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                                                        .fill(Color(red: 0.35, green: 0.55, blue: 1.0).opacity(0.65))
-                                                        .frame(width: max(geo.size.width * item.percentage / 100, 6))
-                                                }
-                                            }
-                                            .frame(height: 5)
-                                        }
+                                        statsBreakdownRow(
+                                            label: item.platform,
+                                            percentage: item.percentage,
+                                            color: blue
+                                        )
                                     }
                                 }
                             }
                         }
                     }
 
-                    // MARK: Recurring
-                    if !stats.topMeetings.isEmpty {
-                        dataTile(title: "Recurring", icon: "arrow.2.squarepath") {
-                            VStack(spacing: 0) {
-                                ForEach(Array(stats.topMeetings.enumerated()), id: \.element.title) { i, item in
-                                    HStack(spacing: 10) {
-                                        ZStack {
-                                            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                                .fill(i == 0 ? accentColor.opacity(0.15) : .white.opacity(0.04))
-                                                .frame(width: 24, height: 24)
-                                            Text("\(i + 1)")
-                                                .font(.system(size: 10, weight: .bold))
-                                                .foregroundStyle(i == 0 ? accentColor : P.text3)
+                    // MARK: Top People + Recurring (side by side)
+                    HStack(alignment: .top, spacing: 12) {
+                        if !stats.topAttendees.isEmpty {
+                            let maxAttendeeCount = max(stats.topAttendees.first?.count ?? 1, 1)
+                            dataTile(title: "Top People", icon: "person.2.fill") {
+                                VStack(spacing: 10) {
+                                    ForEach(Array(stats.topAttendees.enumerated()), id: \.element.name) { i, person in
+                                        HStack(spacing: 10) {
+                                            ZStack {
+                                                Circle()
+                                                    .fill(i == 0 ? accentColor.opacity(0.15) : .white.opacity(0.04))
+                                                    .frame(width: 28, height: 28)
+                                                Text(String(person.name.prefix(1)).uppercased())
+                                                    .font(.system(size: 12, weight: .bold))
+                                                    .foregroundStyle(i == 0 ? accentColor : P.text3)
+                                            }
+
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                HStack {
+                                                    Text(person.name)
+                                                        .font(.system(size: 12, weight: .medium))
+                                                        .foregroundStyle(P.text1)
+                                                        .lineLimit(1)
+                                                    Spacer()
+                                                    Text("\(person.count)\u{00D7}")
+                                                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                                                        .foregroundStyle(P.text3)
+                                                        .monospacedDigit()
+                                                }
+                                                GeometryReader { geo in
+                                                    ZStack(alignment: .leading) {
+                                                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                                            .fill(.white.opacity(0.04))
+                                                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                                            .fill(accentColor)
+                                                            .frame(width: max(geo.size.width * CGFloat(person.count) / CGFloat(maxAttendeeCount), 6))
+                                                    }
+                                                }
+                                                .frame(height: 4)
+                                            }
                                         }
-
-                                        Text(item.title)
-                                            .font(.system(size: 12, weight: .medium))
-                                            .foregroundStyle(P.text1)
-                                            .lineLimit(1)
-
-                                        Spacer()
-
-                                        Text("\(item.count)×")
-                                            .font(.system(size: 14, weight: .bold))
-                                            .foregroundStyle(i == 0 ? accentColor : P.text3)
-                                            .monospacedDigit()
                                     }
-                                    .padding(.vertical, 8)
+                                }
+                            }
+                        }
 
-                                    if i < stats.topMeetings.count - 1 {
-                                        P.divider.frame(height: 0.5)
+                        // Recurring
+                        if !stats.topMeetings.isEmpty {
+                            dataTile(title: "Recurring", icon: "arrow.2.squarepath") {
+                                VStack(spacing: 0) {
+                                    ForEach(Array(stats.topMeetings.enumerated()), id: \.element.title) { i, item in
+                                        HStack(spacing: 10) {
+                                            ZStack {
+                                                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                                    .fill(i == 0 ? accentColor.opacity(0.15) : .white.opacity(0.04))
+                                                    .frame(width: 24, height: 24)
+                                                Text("\(i + 1)")
+                                                    .font(.system(size: 10, weight: .bold))
+                                                    .foregroundStyle(i == 0 ? accentColor : P.text3)
+                                            }
+
+                                            Text(item.title)
+                                                .font(.system(size: 12, weight: .medium))
+                                                .foregroundStyle(P.text1)
+                                                .lineLimit(1)
+
+                                            Spacer()
+
+                                            Text("\(item.count)\u{00D7}")
+                                                .font(.system(size: 14, weight: .bold))
+                                                .foregroundStyle(i == 0 ? accentColor : P.text3)
+                                                .monospacedDigit()
+                                        }
+                                        .padding(.vertical, 8)
+
+                                        if i < stats.topMeetings.count - 1 {
+                                            P.divider.frame(height: 0.5)
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-                .frame(maxWidth: 480)
                 .padding(.horizontal, 24).padding(.vertical, 8)
             }
         }
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Ring Card
+    // MARK: - Hero Card
 
-    private func ringCard(value: Double, max maxVal: Double, label: String, sublabel: String, displayValue: String, color: Color) -> some View {
-        VStack(spacing: 8) {
-            ZStack {
-                // Track
-                Circle()
-                    .stroke(.white.opacity(0.06), lineWidth: 6)
-                    .frame(width: 72, height: 72)
-
-                // Fill
-                Circle()
-                    .trim(from: 0, to: min(value / maxVal, 1.0))
-                    .stroke(
-                        AngularGradient(
-                            colors: [color.opacity(0.6), color],
-                            center: .center,
-                            startAngle: .degrees(-90),
-                            endAngle: .degrees(270)
-                        ),
-                        style: StrokeStyle(lineWidth: 6, lineCap: .round)
-                    )
-                    .frame(width: 72, height: 72)
-                    .rotationEffect(.degrees(-90))
-                    .shadow(color: color.opacity(0.3), radius: 4)
-
-                // Value
-                Text(displayValue)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(P.text1)
+    private func heroCard(value: String, label: String, icon: String, color: Color) -> some View {
+        VStack(spacing: 6) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.system(size: 9))
+                    .foregroundStyle(color.opacity(0.6))
+                Spacer()
             }
 
-            VStack(spacing: 1) {
-                Text(label)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(P.text2)
-                Text(sublabel)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(P.text3)
-            }
+            Text(value)
+                .font(.system(size: 28, weight: .heavy, design: .rounded))
+                .foregroundStyle(color)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(label)
+                .font(.system(size: 8, weight: .heavy))
+                .foregroundStyle(P.text3)
+                .tracking(1.5)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
+        .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(.white.opacity(0.03))
         )
+        .overlay(alignment: .top) {
+            // Solid accent line at top
+            UnevenRoundedRectangle(
+                topLeadingRadius: 14, bottomLeadingRadius: 0,
+                bottomTrailingRadius: 0, topTrailingRadius: 14
+            )
+            .fill(color.opacity(0.5))
+            .frame(height: 2)
+        }
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(.white.opacity(0.05), lineWidth: 0.5)
         )
+    }
+
+    // MARK: - Stats Breakdown Row
+
+    private func statsBreakdownRow(label: String, percentage: Double, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(P.text1)
+                    .lineLimit(1)
+                Spacer()
+                Text("\(Int(percentage))%")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(P.text3)
+                    .monospacedDigit()
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(.white.opacity(0.04))
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(color)
+                        .frame(width: max(geo.size.width * percentage / 100, 6))
+                }
+            }
+            .frame(height: 6)
+        }
     }
 
     // MARK: - Data Tile
@@ -1211,28 +1242,31 @@ struct SettingsView: View {
         return "\(mins)m"
     }
 
-    private struct WellnessDay {
-        let day: String
-        let hours: Double
-        let color: Color
+    private struct StatsDayInfo {
+        let initial: String
+        let count: Int
+        let isToday: Bool
     }
 
-    private var weekWellness: [WellnessDay] {
+    private var statsWeekDayData: [StatsDayInfo] {
         let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        let dayNames = ["M", "T", "W", "T", "F", "S", "S"]
+        let today = Date()
+        guard let weekInterval = cal.dateInterval(of: .weekOfYear, for: today) else { return [] }
 
-        return (0..<7).map { offset in
-            let dayOffset = offset - (cal.component(.weekday, from: today) + 5) % 7
-            let date = cal.date(byAdding: .day, value: dayOffset, to: today)!
-            let dayRecords = appState.statsService.records.filter { cal.isDate($0.date, inSameDayAs: date) }
-            let hours = Double(dayRecords.reduce(0) { $0 + $1.durationMinutes }) / 60.0
-            let color: Color
-            if hours >= 6 { color = .red }
-            else if hours >= 4 { color = .orange }
-            else if hours >= 2 { color = .yellow }
-            else { color = .green }
-            return WellnessDay(day: dayNames[offset], hours: hours, color: color)
+        let initials = ["M", "T", "W", "T", "F", "S", "S"]
+        let todayWeekday = cal.component(.weekday, from: today)
+        let todayIndex = todayWeekday == 1 ? 6 : todayWeekday - 2
+
+        let weekRecords = appState.statsService.records.filter { $0.date >= weekInterval.start }
+        var counts = [Int](repeating: 0, count: 7)
+        for record in weekRecords {
+            let wd = cal.component(.weekday, from: record.date)
+            let index = wd == 1 ? 6 : wd - 2
+            counts[index] += 1
+        }
+
+        return (0..<7).map { i in
+            StatsDayInfo(initial: initials[i], count: counts[i], isToday: i == todayIndex)
         }
     }
 

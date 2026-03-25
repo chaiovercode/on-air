@@ -10,8 +10,9 @@ struct MeetingRecord: Codable, Identifiable {
     let durationMinutes: Int
     let platform: String?
     let calendarName: String
+    var attendees: [String]
 
-    init(from event: CalendarEvent) {
+    init(from event: CalendarEvent, attendees: [String] = []) {
         self.id = UUID()
         self.eventId = event.id
         self.title = event.title
@@ -21,6 +22,7 @@ struct MeetingRecord: Codable, Identifiable {
         self.durationMinutes = event.durationMinutes
         self.platform = event.meetingLink?.platform.displayName
         self.calendarName = event.calendarTitle
+        self.attendees = attendees
     }
 
     init(from decoder: Decoder) throws {
@@ -34,5 +36,6 @@ struct MeetingRecord: Codable, Identifiable {
         durationMinutes = try c.decode(Int.self, forKey: .durationMinutes)
         platform = try c.decodeIfPresent(String.self, forKey: .platform)
         calendarName = try c.decode(String.self, forKey: .calendarName)
+        attendees = try c.decodeIfPresent([String].self, forKey: .attendees) ?? []
     }
 }

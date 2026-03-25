@@ -22,6 +22,7 @@ struct MeetingRowView: View {
     let accentRed: Color
     var use24HourTime: Bool = false
     var hasConflict: Bool = false
+    var currentMinute: Int = 0
 
     @State private var showDetail = false
 
@@ -30,6 +31,8 @@ struct MeetingRowView: View {
     }
 
     private var timeBadgeText: String? {
+        // currentMinute dependency ensures SwiftUI re-evaluates every tick
+        _ = currentMinute
         let now = Date()
         if isInProgress {
             let remaining = Int(event.endDate.timeIntervalSince(now) / 60)

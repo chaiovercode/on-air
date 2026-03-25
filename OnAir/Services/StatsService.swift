@@ -15,13 +15,20 @@ final class StatsService: ObservableObject {
         loadRecords()
     }
 
-    func recordAttendance(_ event: CalendarEvent) {
+    func recordAttendance(_ event: CalendarEvent, attendees: [String] = []) {
         // Prevent duplicate recordings
         guard !records.contains(where: { $0.eventId == event.id }) else { return }
         // Only record past meetings
         guard event.endDate <= Date() else { return }
-        let record = MeetingRecord(from: event)
+        let record = MeetingRecord(from: event, attendees: attendees)
         records.append(record)
+        saveRecords()
+    }
+
+    func backfillAttendees(eventId: String, names: [String]) {
+        guard !names.isEmpty else { return }
+        guard let index = records.firstIndex(where: { $0.eventId == eventId && $0.attendees.isEmpty }) else { return }
+        records[index].attendees = names
         saveRecords()
     }
 
@@ -53,6 +60,32 @@ final class StatsService: ObservableObject {
     var totalHoursDisplay: String {
         let hours = Int(totalHours)
         let mins = Int((totalHours - Double(hours)) * 60)
+        if hours == 0 { return "\(mins)m" }
+        return "\(hours)h \(mins)m"
+    }
+
+    var hoursThisWeek: Double {
+        let calendar = Calendar.current
+        let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
+        let weekRecords = records.filter { $0.date >= startOfWeek }
+        return Double(weekRecords.reduce(0) { $0 + $1.durationMinutes }) / 60.0
+    }
+
+    var hoursThisWeekDisplay: String {
+        let hours = Int(hoursThisWeek)
+        let mins = Int((hoursThisWeek - Double(hours)) * 60)
+        if hours == 0 { return "\(mins)m" }
+        return "\(hours)h \(mins)m"
+    }
+
+    var avgDurationMinutes: Int {
+        guard !records.isEmpty else { return 0 }
+        return records.reduce(0) { $0 + $1.durationMinutes } / records.count
+    }
+
+    var avgDurationDisplay: String {
+        let hours = avgDurationMinutes / 60
+        let mins = avgDurationMinutes % 60
         if hours == 0 { return "\(mins)m" }
         return "\(hours)h \(mins)m"
     }
@@ -112,6 +145,20 @@ final class StatsService: ObservableObject {
             .map { (title: $0.key, count: $0.value) }
             .sorted { $0.count > $1.count }
             .prefix(5)
+            .map { $0 }
+    }
+
+    var topAttendees: [(name: String, count: Int)] {
+        var counts = [String: Int]()
+        for record in records {
+            for name in record.attendees {
+                counts[name, default: 0] += 1
+            }
+        }
+        return counts
+            .map { (name: $0.key, count: $0.value) }
+            .sorted { $0.count > $1.count }
+            .prefix(3)
             .map { $0 }
     }
 

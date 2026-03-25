@@ -145,6 +145,21 @@ final class CalendarService: ObservableObject {
         return ekEvent.attendees?.count ?? 0
     }
 
+    /// Returns non-self attendee names for an event
+    func attendeeNames(eventId: String) -> [String] {
+        let cal = Calendar.current
+        let start = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: Date()))!
+        let end = cal.date(byAdding: .day, value: 2, to: cal.startOfDay(for: Date()))!
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+        guard let ekEvent = store.events(matching: predicate).first(where: { $0.eventIdentifier == eventId }) else {
+            return []
+        }
+        return (ekEvent.attendees ?? [])
+            .filter { !$0.isCurrentUser }
+            .compactMap { $0.name }
+            .filter { !$0.isEmpty }
+    }
+
     /// Fetches Focus Block events (which are excluded from regular fetchEvents by shouldShow)
     func fetchFocusBlocks(from startDate: Date, to endDate: Date) -> [CalendarEvent] {
         let predicate = store.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
@@ -173,6 +188,23 @@ final class CalendarService: ObservableObject {
 
         do {
             try store.save(event, span: .thisEvent)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    func deleteFocusBlock(eventId: String) -> Bool {
+        // Look up by eventIdentifier (matching how CalendarEvent.id is set)
+        let cal = Calendar.current
+        let start = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: Date()))!
+        let end = cal.date(byAdding: .day, value: 2, to: cal.startOfDay(for: Date()))!
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+        guard let ekEvent = store.events(matching: predicate).first(where: { $0.eventIdentifier == eventId }) else {
+            return false
+        }
+        do {
+            try store.remove(ekEvent, span: .thisEvent)
             return true
         } catch {
             return false

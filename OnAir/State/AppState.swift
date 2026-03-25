@@ -15,6 +15,7 @@ final class AppState: ObservableObject {
     @Published var soundWarning: Bool = false
     @Published var wrapUpAlert: Bool = false
     @Published var minuteTick: Int = 0  // Increments every minute to refresh time-dependent views
+    var dismissedFocusGaps: Set<String> = []
 
     // MARK: - Services
 
@@ -88,7 +89,9 @@ final class AppState: ObservableObject {
         if settings.trackStats {
             let now = Date()
             for event in todayEvents where event.endDate <= now {
-                statsService.recordAttendance(event)
+                let names = calendarService.attendeeNames(eventId: event.id)
+                statsService.recordAttendance(event, attendees: names)
+                statsService.backfillAttendees(eventId: event.id, names: names)
             }
         }
 

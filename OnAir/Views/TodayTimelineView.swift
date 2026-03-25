@@ -3,7 +3,7 @@ import SwiftUI
 struct TodayTimelineView: View {
 
     @ObservedObject var appState: AppState
-    @State private var dismissedGaps: Set<String> = []
+    // appState.dismissedFocusGaps lives in appState.dismissedFocusGaps so it persists across popover toggling
     @State private var activeMenuKey: String? = nil
 
     // Drag state
@@ -292,18 +292,19 @@ struct TodayTimelineView: View {
                 draggableBlock(event: event) { meetingBlock(event) }
 
             case .focusBlock(let event):
-                draggableBlock(event: event) {
-                    bookedBlock(
-                        start: event.startDate,
-                        end: event.endDate,
-                        minutes: event.durationMinutes
-                    )
-                }
+                bookedBlock(
+                    eventId: event.id,
+                    start: event.startDate,
+                    end: event.endDate,
+                    minutes: event.durationMinutes
+                )
+                .frame(height: heightForDuration(event.durationMinutes))
+                .offset(y: offsetForTime(event.startDate))
 
             case .focusGap(let start, let end):
                 let mins = Int(end.timeIntervalSince(start) / 60)
                 let key = gapKey(start: start, end: end)
-                if mins >= 30 && !dismissedGaps.contains(key) {
+                if mins >= 30 && !appState.dismissedFocusGaps.contains(key) {
                     focusBlock(start: start, end: end, minutes: mins)
                         .frame(height: heightForDuration(mins))
                         .offset(y: offsetForTime(start))
@@ -461,17 +462,16 @@ struct TodayTimelineView: View {
                     .padding(.top, 6)
                     .padding(.bottom, 4)
 
-                HStack(spacing: 4) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 40), spacing: 4)], spacing: 4) {
                     ForEach(durations, id: \.self) { m in
                         Button {
                             bookFocusBlock(from: start, minutes: m)
-        
                             activeMenuKey = nil
                         } label: {
                             Text("\(m)m")
                                 .font(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(.white.opacity(0.7))
-                                .padding(.horizontal, 8)
+                                .frame(maxWidth: .infinity)
                                 .padding(.vertical, 4)
                                 .background(
                                     RoundedRectangle(cornerRadius: 4, style: .continuous)
@@ -489,7 +489,7 @@ struct TodayTimelineView: View {
             // Dismiss
             panelRow(icon: "xmark", label: "Dismiss", color: .red.opacity(0.7)) {
                 withAnimation(.easeOut(duration: 0.2)) {
-                    _ = dismissedGaps.insert(key)
+                    _ = appState.dismissedFocusGaps.insert(key)
                 }
                 activeMenuKey = nil
             }
@@ -592,7 +592,7 @@ struct TodayTimelineView: View {
             .strokeBorder(accentColor.opacity(0.08), style: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
     }
 
-    private func bookedBlock(start: Date, end: Date, minutes: Int) -> some View {
+    private func bookedBlock(eventId: String, start: Date, end: Date, minutes: Int) -> some View {
         HStack(spacing: 8) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(accentColor)
@@ -614,6 +614,20 @@ struct TodayTimelineView: View {
             }
 
             Spacer()
+
+            Button {
+                if appState.calendarService.deleteFocusBlock(eventId: eventId) {
+                    appState.refreshEvents()
+                }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(accentColor.opacity(0.5))
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(accentColor.opacity(0.08)))
+            }
+            .buttonStyle(.plain)
+            .help("Remove Focus Block")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
@@ -861,19 +875,21 @@ struct TodayTimelineView: View {
     // MARK: - Layout Helpers
 
     private var displayHours: [Int] {
-        let sorted = events.sorted { $0.startDate < $1.startDate }
-        var firstHour = sorted.first.map { calendar.component(.hour, from: $0.startDate) } ?? 9
-        var lastHour = sorted.last.map { calendar.component(.hour, from: $0.endDate) + 1 } ?? 18
-
-        // Include commute windows in the range
-        if let m = appState.settings.morningCommuteToday() {
-            firstHour = min(firstHour, calendar.component(.hour, from: m.start))
+        // Check if any event/focus block spans past midnight
+        let allEvents = events + focusBlockEvents
+        var maxHour = 24
+        let todayStart = calendar.startOfDay(for: Date())
+        for event in allEvents {
+            if event.endDate > todayStart {
+                let hoursFromMidnight = event.endDate.timeIntervalSince(todayStart) / 3600
+                let needed = Int(ceil(hoursFromMidnight))
+                if needed > maxHour {
+                    maxHour = needed
+                }
+            }
         }
-        if let e = appState.settings.eveningCommuteToday() {
-            lastHour = max(lastHour, calendar.component(.hour, from: e.end) + 1)
-        }
 
-        return Array(0..<24)
+        return Array(0..<maxHour)
     }
 
     private var timelineStartHour: Int {
@@ -891,13 +907,14 @@ struct TodayTimelineView: View {
     }
 
     private func hourLabel(_ hour: Int) -> String {
+        let h = hour % 24
         if appState.settings.use24HourTime {
-            return String(format: "%02d:00", hour)
+            return String(format: "%02d:00", h)
         }
-        if hour == 0 { return "12a" }
-        if hour < 12 { return "\(hour)a" }
-        if hour == 12 { return "12p" }
-        return "\(hour - 12)p"
+        if h == 0 { return "12a" }
+        if h < 12 { return "\(h)a" }
+        if h == 12 { return "12p" }
+        return "\(h - 12)p"
     }
 
     private func timeLabel(_ date: Date) -> String {
