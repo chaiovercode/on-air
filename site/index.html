@@ -235,6 +235,46 @@
         }
         .cta-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.12); background: var(--surface); }
 
+        .brew-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.7rem 1.2rem;
+            border-radius: 9px;
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            color: var(--text2);
+            cursor: pointer;
+            position: relative;
+            z-index: 1;
+            transition: all 0.2s;
+            animation: fadeUp 0.8s ease 0.3s both;
+        }
+        .brew-box:hover { border-color: rgba(255,255,255,0.12); background: var(--surface2); }
+        .brew-prompt { color: var(--accent); font-weight: 700; }
+        .brew-copy {
+            font-family: 'Satoshi', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text3);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.05);
+            margin-left: 0.4rem;
+        }
+        .brew-copied {
+            position: absolute;
+            right: 1.2rem;
+            font-family: 'Satoshi', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--accent);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
         .hero-meta {
             margin-top: 1.25rem;
             font-size: 0.75rem;
@@ -557,13 +597,14 @@
         <h1>Your meetings,<br>always <em>visible.</em></h1>
         <p class="subtitle">A menu bar companion that keeps you ahead of your calendar. Focus timer, auto-join, conflict alerts, and smart nudges — one click from the top of your screen.</p>
         <div class="hero-actions">
-            <a href="#download" class="cta-primary">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Download for macOS
-            </a>
-            <a href="#features" class="cta-ghost">See features</a>
+            <div class="brew-box" onclick="navigator.clipboard.writeText('brew tap chaiovercode/tap && brew install --cask on-air');this.querySelector('.brew-copied').style.opacity=1;setTimeout(()=>this.querySelector('.brew-copied').style.opacity=0,1500)">
+                <span class="brew-prompt">$</span>
+                <span>brew tap chaiovercode/tap && brew install --cask on-air</span>
+                <span class="brew-copy">copy</span>
+                <span class="brew-copied">copied!</span>
+            </div>
         </div>
-        <p class="hero-meta">Free  /  macOS 13+  /  1.5 MB  /  No account</p>
+        <p class="hero-meta">Free  /  macOS 13+  /  2 MB  /  No account</p>
         <div class="hero-mockup">
             <div class="menubar-mock">
                 <div class="dot"></div>
@@ -694,11 +735,13 @@
     <!-- FINAL CTA -->
     <section class="final-cta reveal" id="download">
         <h2>Ready to stay <em>ahead?</em></h2>
-        <p>Free download. No sign-up. Works instantly.</p>
-        <a href="https://github.com/chaiovercode/on-air/releases/latest/download/OnAir.zip" class="cta-primary">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Download for macOS
-        </a>
+        <p>One line. That is it.</p>
+        <div class="brew-box" onclick="navigator.clipboard.writeText('brew tap chaiovercode/tap && brew install --cask on-air');this.querySelector('.brew-copied').style.opacity=1;setTimeout(()=>this.querySelector('.brew-copied').style.opacity=0,1500)">
+            <span class="brew-prompt">$</span>
+            <span>brew tap chaiovercode/tap && brew install --cask on-air</span>
+            <span class="brew-copy">copy</span>
+            <span class="brew-copied">copied!</span>
+        </div>
     </section>
 
     <!-- FOOTER -->
