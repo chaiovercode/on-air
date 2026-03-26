@@ -13,6 +13,18 @@ brew install --cask on-air
 
 Or grab the zip from [Releases](https://github.com/chaiovercode/on-air/releases), unzip, double-click `install.command`.
 
+## Screenshots
+
+<p>
+  <img src="screenshots/calendar.png" width="260" alt="Calendar view">
+  <img src="screenshots/timeline.png" width="260" alt="Timeline view">
+  <img src="screenshots/focus.png" width="260" alt="Focus timer">
+</p>
+
+<p>
+  <img src="screenshots/settings.png" width="540" alt="Settings">
+</p>
+
 ## What it does
 
 The menu bar shows your next meeting and a countdown. Click it and you get your whole day.
