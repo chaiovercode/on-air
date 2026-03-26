@@ -162,11 +162,11 @@ final class StatsService: ObservableObject {
             .map { $0 }
     }
 
-    /// Daily meeting counts for heatmap — returns last 16 weeks (112 days)
+    /// Daily meeting counts for heatmap — returns last 52 weeks (365 days)
     func heatmapData() -> [Date: Int] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        guard let start = calendar.date(byAdding: .day, value: -111, to: today) else { return [:] }
+        guard let start = calendar.date(byAdding: .day, value: -364, to: today) else { return [:] }
 
         var counts = [Date: Int]()
         for record in records {

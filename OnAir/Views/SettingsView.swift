@@ -76,7 +76,9 @@ struct SettingsView: View {
             // Tab bar
             HStack(spacing: 4) {
                 ForEach(Tab.allCases, id: \.self) { tab in
-                    Button { selectedTab = tab } label: {
+                    Button {
+                        selectedTab = tab
+                    } label: {
                         HStack(spacing: 5) {
                             Image(systemName: tab.icon)
                                 .font(.system(size: 10.5, weight: .medium))
@@ -86,6 +88,7 @@ struct SettingsView: View {
                         .foregroundStyle(selectedTab == tab ? Color(hex: settings.accentColorHex) : .secondary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
+                        .contentShape(Rectangle())
                         .background(
                             RoundedRectangle(cornerRadius: 6, style: .continuous)
                                 .fill(selectedTab == tab ? Color(hex: settings.accentColorHex).opacity(0.1) : .clear)
@@ -95,7 +98,7 @@ struct SettingsView: View {
                                 .strokeBorder(selectedTab == tab ? Color(hex: settings.accentColorHex).opacity(0.25) : .clear, lineWidth: 0.5)
                         )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.borderless)
                 }
             }
             .padding(.bottom, 10)
@@ -110,7 +113,11 @@ struct SettingsView: View {
                     case .general: generalTab
                     case .display: displayTab
                     case .calendars: calendarsTab
-                    case .stats: statsTab
+                    case .stats: StatsTabContent(
+                        stats: appState.statsService,
+                        focus: appState.focusService,
+                        accentColor: accentColor
+                    )
                     case .about: aboutTab
                     }
                 }
@@ -192,6 +199,13 @@ struct SettingsView: View {
                 }
 
                 Section("Countdown") {
+                    iconRow("speaker.slash", "Mute countdown", sub: "Silence the audio before meetings") {
+                        Toggle("", isOn: Binding(
+                            get: { !settings.countdownSoundEnabled },
+                            set: { settings.countdownSoundEnabled = !$0 }
+                        ))
+                        .toggleStyle(AlwaysOnToggleStyle(color: accentColor))
+                    }
                     iconRow("timer", "Lead time", sub: "How early the countdown sound starts") {
                         Picker("", selection: $settings.leadTimeSeconds) {
                             ForEach(UserSettings.LeadTimePreset.allCases, id: \.rawValue) { p in
@@ -345,121 +359,7 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Booking") {
-                    iconRow("link", "Enable booking page", sub: "Let others book time on your calendar") {
-                        Toggle("", isOn: Binding(
-                            get: { settings.bookingEnabled },
-                            set: { enabled in
-                                settings.bookingEnabled = enabled
-                                if enabled {
-                                    appState.bookingServer.start()
-                                } else {
-                                    appState.bookingServer.stop()
-                                }
-                            }
-                        ))
-                        .toggleStyle(AlwaysOnToggleStyle(color: Color(hex: settings.accentColorHex)))
-                    }
-
-                    if settings.bookingEnabled {
-                        iconRow("person", "Your name", sub: nil) {
-                            TextField("Display name", text: $settings.bookingName)
-                                .textFieldStyle(.plain)
-                                .font(.system(size: 13))
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 140)
-                        }
-
-                        iconRow("clock", "Slot duration", sub: nil) {
-                            let durations = [(15,"15m"),(30,"30m"),(45,"45m"),(60,"1h")]
-                            let current = durations.first { $0.0 == settings.bookingSlotMinutes }?.1 ?? "30m"
-                            Menu {
-                                ForEach(durations, id: \.0) { val, label in
-                                    Button(label) { settings.bookingSlotMinutes = val }
-                                }
-                            } label: {
-                                Text(current)
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(P.text1)
-                                    .padding(.horizontal, 10).padding(.vertical, 6)
-                                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.white.opacity(0.06)))
-                                    .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(.white.opacity(0.08), lineWidth: 0.5))
-                            }
-                            .buttonStyle(.plain)
-                        }
-
-                        iconRow("clock.arrow.circlepath", "Available hours", sub: nil) {
-                            HStack(spacing: 4) {
-                                commuteTimePicker(hour: $settings.bookingStartHour, minute: .constant(0))
-                                Text("to").font(.system(size: 11)).foregroundStyle(P.text3)
-                                commuteTimePicker(hour: $settings.bookingEndHour, minute: .constant(0))
-                            }
-                        }
-
-                        // Day pills
-                        HStack(spacing: 4) {
-                            let dayLabels = [(2,"M"),(3,"T"),(4,"W"),(5,"T"),(6,"F"),(7,"S"),(1,"S")]
-                            ForEach(dayLabels, id: \.0) { weekday, label in
-                                Button {
-                                    settings.toggleBookingDay(weekday)
-                                } label: {
-                                    Text(label)
-                                        .font(.system(size: 11, weight: settings.isBookingDay(weekday) ? .bold : .regular))
-                                        .foregroundStyle(settings.isBookingDay(weekday) ? .white : P.text3)
-                                        .frame(width: 28, height: 28)
-                                        .background(
-                                            Circle()
-                                                .fill(settings.isBookingDay(weekday) ? Color(hex: settings.accentColorHex).opacity(0.6) : .white.opacity(0.04))
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-
-                        // Booking URL
-                        HStack(spacing: 8) {
-                            Spacer()
-                            Button {
-                                let url = appState.bookingServer.bookingURL
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(url, forType: .string)
-                            } label: {
-                                HStack(spacing: 5) {
-                                    Image(systemName: "doc.on.doc").font(.system(size: 10))
-                                    Text(appState.bookingServer.bookingURL).font(.system(size: 11, weight: .medium))
-                                }
-                                .foregroundStyle(Color(hex: settings.accentColorHex))
-                                .padding(.horizontal, 12).padding(.vertical, 6)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                        .fill(Color(hex: settings.accentColorHex).opacity(0.08))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                        .strokeBorder(Color(hex: settings.accentColorHex).opacity(0.15), lineWidth: 0.5)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .help("Click to copy booking URL")
-
-                            Button {
-                                NSWorkspace.shared.open(URL(string: appState.bookingServer.bookingURL)!)
-                            } label: {
-                                Image(systemName: "arrow.up.right")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(P.text2)
-                                    .frame(width: 28, height: 28)
-                                    .background(Circle().fill(.white.opacity(0.06)))
-                            }
-                            .buttonStyle(.plain)
-                            .help("Open booking page")
-                            Spacer()
-                        }
-                        .padding(.vertical, 8)
-                    }
-                }
+                // Booking section disabled
             }
             .padding(.horizontal, 24).padding(.vertical, 8)
         }
@@ -765,29 +665,6 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    iconRow("sparkles", "Long weekends", sub: "Highlight extended weekends around holidays") {
-                        Toggle("", isOn: $settings.showLongWeekends)
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                            .tint(Color(hex: settings.accentColorHex))
-                    }
-
-                    if settings.showLongWeekends && !appState.calendarService.availableCalendars.isEmpty {
-                        HStack(spacing: 6) {
-                            Image(systemName: "info.circle")
-                                .font(.system(size: 9))
-                                .foregroundStyle(P.text3)
-                            Text("Mark holiday calendars below to detect long weekends")
-                                .font(.system(size: 10))
-                                .foregroundStyle(P.text3)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                    }
-
-                    if settings.showLongWeekends && !settings.holidayCalendarIds.isEmpty {
-                        upcomingHolidaysList
-                    }
                 }
 
                 if !appState.calendarService.availableCalendars.isEmpty {
@@ -837,32 +714,6 @@ struct SettingsView: View {
                                     .lineLimit(1)
                                 Spacer()
 
-                                // Holiday chip (when long weekends is on)
-                                if settings.showLongWeekends {
-                                    Button {
-                                        settings.toggleHolidayCalendar(cal.id)
-                                    } label: {
-                                        HStack(spacing: 3) {
-                                            Image(systemName: settings.isHolidayCalendar(cal.id) ? "diamond.fill" : "diamond")
-                                                .font(.system(size: 6))
-                                            Text("Holiday")
-                                                .font(.system(size: 10, weight: .medium))
-                                        }
-                                        .foregroundStyle(settings.isHolidayCalendar(cal.id) ? Color(hex: settings.accentColorHex) : P.text3)
-                                        .padding(.horizontal, 7)
-                                        .padding(.vertical, 3)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                                .fill(settings.isHolidayCalendar(cal.id) ? Color(hex: settings.accentColorHex).opacity(0.12) : .clear)
-                                        )
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                                .strokeBorder(settings.isHolidayCalendar(cal.id) ? Color(hex: settings.accentColorHex).opacity(0.3) : P.text3.opacity(0.3), lineWidth: 0.5)
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-
                                 Toggle("", isOn: Binding(
                                     get: { settings.isCalendarEnabled(cal.id) },
                                     set: { _ in settings.toggleCalendar(cal.id); appState.refreshEvents() }
@@ -906,687 +757,11 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Upcoming Holidays List
-
-    private var upcomingHolidaysList: some View {
-        let cal = Calendar.current
-        let now = Date()
-        let start = cal.startOfDay(for: now)
-        guard let end = cal.date(byAdding: .month, value: 3, to: start) else {
-            return AnyView(EmptyView())
-        }
-        let allDay = appState.calendarService.fetchAllDayEvents(
-            from: start, to: end, disabledCalendarIds: []
-        )
-        let holidayIds = settings.holidayCalendarIds
-        let holidays = allDay
-            .filter { holidayIds.contains($0.calendarId) }
-            .sorted { $0.startDate < $1.startDate }
-
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withFullDate]
-
-        let dateFmt = DateFormatter()
-        dateFmt.dateFormat = "MMM d, EEE"
-
-        if holidays.isEmpty {
-            return AnyView(EmptyView())
-        }
-
-        return AnyView(
-            VStack(alignment: .leading, spacing: 0) {
-                Text("UPCOMING HOLIDAYS")
-                    .font(.system(size: 9, weight: .heavy))
-                    .foregroundStyle(P.text3)
-                    .tracking(1.2)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 6)
-
-                ForEach(holidays, id: \.id) { holiday in
-                    let dateStr = formatter.string(from: cal.startOfDay(for: holiday.startDate))
-                    let dismissed = settings.isHolidayDismissed(dateStr)
-
-                    HStack(spacing: 10) {
-                        Button {
-                            settings.toggleHolidayDismissed(dateStr)
-                        } label: {
-                            Image(systemName: dismissed ? "xmark.circle.fill" : "checkmark.circle.fill")
-                                .font(.system(size: 14))
-                                .foregroundStyle(dismissed ? P.text3 : Color(hex: settings.accentColorHex))
-                        }
-                        .buttonStyle(.plain)
-
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(holiday.title)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(dismissed ? P.text3 : P.text1)
-                                .strikethrough(dismissed, color: P.text3)
-                            Text(dateFmt.string(from: holiday.startDate))
-                                .font(.system(size: 10))
-                                .foregroundStyle(P.text3)
-                        }
-
-                        Spacer()
-
-                        if dismissed {
-                            Text("skipped")
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundStyle(P.text3)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 7)
-                    .overlay(alignment: .bottom) {
-                        P.divider.frame(height: 0.5).padding(.horizontal, 16)
-                    }
-                }
-            }
-        )
-    }
-
     // MARK: - Stats Tab (settings-native)
 
     private var accentColor: Color { Color(hex: settings.accentColorHex) }
 
-    private var statsTab: some View {
-        let stats = appState.statsService
-        let focus = appState.focusService
-        let hasData = !stats.records.isEmpty || focus.totalSessions > 0
-        let amber = Color(red: 1.0, green: 0.6, blue: 0.2)
-        let blue = Color(red: 0.35, green: 0.55, blue: 1.0)
-
-        return ScrollView(.vertical, showsIndicators: false) {
-            if !hasData {
-                VStack(spacing: 16) {
-                    Spacer().frame(height: 80)
-                    ZStack {
-                        Circle().fill(accentColor.opacity(0.08)).frame(width: 80, height: 80).blur(radius: 20)
-                        Image(systemName: "chart.bar.xaxis.ascending")
-                            .font(.system(size: 28, weight: .light)).foregroundStyle(P.text3)
-                    }
-                    Text("No stats yet").font(.system(size: 15, weight: .semibold)).foregroundStyle(P.text1)
-                    Text("Attend a meeting or start a\nfocus session to see stats.")
-                        .font(.system(size: 12)).foregroundStyle(P.text2)
-                        .multilineTextAlignment(.center).lineSpacing(3)
-                }
-                .frame(maxWidth: .infinity)
-            } else {
-                VStack(alignment: .leading, spacing: 16) {
-
-                    // MARK: Hero Cards
-                    HStack(spacing: 12) {
-                        heroCard(
-                            value: "\(stats.meetingsThisWeek)",
-                            label: "THIS WEEK",
-                            icon: "flame.fill",
-                            color: accentColor
-                        )
-                        heroCard(
-                            value: stats.hoursThisWeekDisplay,
-                            label: "HOURS",
-                            icon: "clock.fill",
-                            color: amber
-                        )
-                        if focus.totalSessions > 0 {
-                            heroCard(
-                                value: "\(Int(focus.completionRate * 100))%",
-                                label: "FOCUS",
-                                icon: "brain.head.profile",
-                                color: .green
-                            )
-                        } else {
-                            heroCard(
-                                value: stats.avgDurationDisplay,
-                                label: "AVG LENGTH",
-                                icon: "timer",
-                                color: blue
-                            )
-                        }
-                    }
-                    .padding(.top, 16)
-
-                    // MARK: Week Strip
-                    if !stats.records.isEmpty {
-                        let dayData = statsWeekDayData
-                        let maxCount = max(dayData.map(\.count).max() ?? 1, 1)
-
-                        HStack(spacing: 6) {
-                            ForEach(Array(dayData.enumerated()), id: \.offset) { _, day in
-                                VStack(spacing: 0) {
-                                    VStack(spacing: 4) {
-                                        Spacer(minLength: 0)
-
-                                        if day.count > 0 {
-                                            Text("\(day.count)")
-                                                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                                                .foregroundStyle(P.text1)
-                                        }
-
-                                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                            .fill(day.count > 0 ? accentColor : .white.opacity(0.03))
-                                            .frame(width: 24, height: day.count > 0
-                                                ? max(CGFloat(day.count) / CGFloat(maxCount) * 44, 10)
-                                                : 2)
-                                    }
-                                    .frame(height: 70)
-
-                                    Text(day.initial)
-                                        .font(.system(size: 11, weight: day.isToday ? .heavy : .medium))
-                                        .foregroundStyle(day.isToday ? P.text1 : P.text3)
-                                        .padding(.top, 8)
-                                        .padding(.bottom, 4)
-                                        .overlay(alignment: .bottom) {
-                                            if day.isToday {
-                                                Circle()
-                                                    .fill(accentColor)
-                                                    .frame(width: 4, height: 4)
-                                            }
-                                        }
-                                }
-                                .frame(width: 32)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(.white.opacity(0.03))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .strokeBorder(.white.opacity(0.05), lineWidth: 0.5)
-                        )
-                    }
-
-                    // MARK: Calendar Heatmap
-                    if !stats.records.isEmpty {
-                        calendarHeatmap(stats: stats)
-                    }
-
-                    // MARK: Focus Summary
-                    if focus.totalSessions > 0 {
-                        dataTile(title: "Focus", icon: "brain.head.profile") {
-                            HStack(spacing: 0) {
-                                focusTile(value: "\(focusSessionsThisWeek)", label: "Sessions", sub: "this week", color: .green)
-                                    .frame(maxWidth: .infinity)
-                                tileVerticalDivider
-                                focusTile(value: formatMinutes(focus.weekFocusMinutes), label: "Time", sub: "this week", color: .green)
-                                    .frame(maxWidth: .infinity)
-                                tileVerticalDivider
-                                focusTile(value: "\(focus.todayFocusMinutes)m", label: "Today", sub: "focused", color: .green)
-                                    .frame(maxWidth: .infinity)
-                            }
-                        }
-                    }
-
-                    // MARK: Peak Hours + Platforms
-                    HStack(alignment: .top, spacing: 12) {
-                        if !stats.peakHours.isEmpty {
-                            dataTile(title: "Peak Hours", icon: "clock.fill") {
-                                VStack(spacing: 8) {
-                                    ForEach(stats.peakHours.prefix(4), id: \.hour) { item in
-                                        HStack(spacing: 10) {
-                                            Text(compactHourLabel(item.hour))
-                                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                                .foregroundStyle(P.text2)
-                                                .frame(width: 52, alignment: .leading)
-
-                                            GeometryReader { geo in
-                                                ZStack(alignment: .leading) {
-                                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                                        .fill(.white.opacity(0.04))
-                                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                                        .fill(amber)
-                                                        .frame(width: max(geo.size.width * item.percentage / 100, 6))
-                                                }
-                                            }
-                                            .frame(height: 8)
-
-                                            Text("\(Int(item.percentage))%")
-                                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                                .foregroundStyle(P.text3)
-                                                .frame(width: 28, alignment: .trailing)
-                                                .monospacedDigit()
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if !stats.platformBreakdown.isEmpty {
-                            dataTile(title: "Platforms", icon: "video.fill") {
-                                VStack(spacing: 12) {
-                                    // Stacked segment bar
-                                    GeometryReader { geo in
-                                        let platformColors: [Color] = [blue, accentColor, amber, .green, .purple]
-                                        HStack(spacing: 2) {
-                                            ForEach(Array(stats.platformBreakdown.enumerated()), id: \.element.platform) { i, item in
-                                                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                                    .fill(platformColors[i % platformColors.count])
-                                                    .frame(width: max(geo.size.width * item.percentage / 100 - 1, 4))
-                                            }
-                                        }
-                                    }
-                                    .frame(height: 10)
-
-                                    // Legend
-                                    VStack(spacing: 6) {
-                                        let platformColors: [Color] = [blue, accentColor, amber, .green, .purple]
-                                        ForEach(Array(stats.platformBreakdown.enumerated()), id: \.element.platform) { i, item in
-                                            HStack(spacing: 8) {
-                                                Circle()
-                                                    .fill(platformColors[i % platformColors.count])
-                                                    .frame(width: 6, height: 6)
-                                                Text(item.platform)
-                                                    .font(.system(size: 11, weight: .medium))
-                                                    .foregroundStyle(P.text1)
-                                                Spacer()
-                                                Text("\(item.count)")
-                                                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                                                    .foregroundStyle(P.text2)
-                                                    .monospacedDigit()
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // MARK: Top People + Recurring
-                    HStack(alignment: .top, spacing: 12) {
-                        if !stats.topAttendees.isEmpty {
-                            let maxAttendeeCount = max(stats.topAttendees.first?.count ?? 1, 1)
-                            dataTile(title: "Top People", icon: "person.2.fill") {
-                                VStack(spacing: 12) {
-                                    ForEach(Array(stats.topAttendees.enumerated()), id: \.element.name) { i, person in
-                                        let displayName = extractDisplayName(person.name)
-                                        HStack(spacing: 10) {
-                                            ZStack {
-                                                Circle()
-                                                    .fill(i == 0 ? accentColor.opacity(0.15) : .white.opacity(0.05))
-                                                    .frame(width: 32, height: 32)
-                                                Text(String(displayName.prefix(1)).uppercased())
-                                                    .font(.system(size: 13, weight: .bold))
-                                                    .foregroundStyle(i == 0 ? accentColor : P.text2)
-                                            }
-
-                                            VStack(alignment: .leading, spacing: 4) {
-                                                HStack {
-                                                    Text(displayName)
-                                                        .font(.system(size: 12, weight: .semibold))
-                                                        .foregroundStyle(P.text1)
-                                                        .lineLimit(1)
-                                                    Spacer()
-                                                    Text("\(person.count)")
-                                                        .font(.system(size: 13, weight: .heavy, design: .rounded))
-                                                        .foregroundStyle(i == 0 ? accentColor : P.text2)
-                                                        .monospacedDigit()
-                                                }
-                                                GeometryReader { geo in
-                                                    ZStack(alignment: .leading) {
-                                                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                                            .fill(.white.opacity(0.04))
-                                                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                                            .fill(accentColor.opacity(i == 0 ? 1.0 : 0.5))
-                                                            .frame(width: max(geo.size.width * CGFloat(person.count) / CGFloat(maxAttendeeCount), 6))
-                                                    }
-                                                }
-                                                .frame(height: 5)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Recurring
-                        if !stats.topMeetings.isEmpty {
-                            let maxMeetingCount = max(stats.topMeetings.first?.count ?? 1, 1)
-                            dataTile(title: "Recurring", icon: "arrow.2.squarepath") {
-                                VStack(spacing: 0) {
-                                    ForEach(Array(stats.topMeetings.enumerated()), id: \.element.title) { i, item in
-                                        HStack(spacing: 10) {
-                                            // Count as the visual element
-                                            Text("\(item.count)")
-                                                .font(.system(size: 14, weight: .heavy, design: .rounded))
-                                                .foregroundStyle(i == 0 ? accentColor : P.text2)
-                                                .frame(width: 24)
-                                                .monospacedDigit()
-
-                                            VStack(alignment: .leading, spacing: 4) {
-                                                Text(item.title)
-                                                    .font(.system(size: 12, weight: .medium))
-                                                    .foregroundStyle(P.text1)
-                                                    .lineLimit(1)
-
-                                                GeometryReader { geo in
-                                                    ZStack(alignment: .leading) {
-                                                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                                            .fill(.white.opacity(0.04))
-                                                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                                            .fill(accentColor.opacity(i == 0 ? 0.6 : 0.25))
-                                                            .frame(width: max(geo.size.width * CGFloat(item.count) / CGFloat(maxMeetingCount), 6))
-                                                    }
-                                                }
-                                                .frame(height: 3)
-                                            }
-                                        }
-                                        .padding(.vertical, 8)
-
-                                        if i < stats.topMeetings.count - 1 {
-                                            P.divider.frame(height: 0.5)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, 24).padding(.vertical, 8)
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    // MARK: - Hero Card
-
-    private func heroCard(value: String, label: String, icon: String, color: Color) -> some View {
-        VStack(spacing: 6) {
-            HStack {
-                Image(systemName: icon)
-                    .font(.system(size: 9))
-                    .foregroundStyle(color.opacity(0.6))
-                Spacer()
-            }
-
-            Text(value)
-                .font(.system(size: 28, weight: .heavy, design: .rounded))
-                .foregroundStyle(color)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text(label)
-                .font(.system(size: 8, weight: .heavy))
-                .foregroundStyle(P.text3)
-                .tracking(1.5)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.white.opacity(0.03))
-        )
-        .overlay(alignment: .top) {
-            // Solid accent line at top
-            UnevenRoundedRectangle(
-                topLeadingRadius: 14, bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0, topTrailingRadius: 14
-            )
-            .fill(color.opacity(0.5))
-            .frame(height: 2)
-        }
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(.white.opacity(0.05), lineWidth: 0.5)
-        )
-    }
-
-    // MARK: - Stats Breakdown Row
-
-    private func statsBreakdownRow(label: String, percentage: Double, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack {
-                Text(label)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(P.text1)
-                    .lineLimit(1)
-                Spacer()
-                Text("\(Int(percentage))%")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundStyle(P.text3)
-                    .monospacedDigit()
-            }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .fill(.white.opacity(0.04))
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .fill(color)
-                        .frame(width: max(geo.size.width * percentage / 100, 6))
-                }
-            }
-            .frame(height: 6)
-        }
-    }
-
-    // MARK: - Data Tile
-
-    private func dataTile<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(P.text3)
-                Text(title)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(P.text2)
-            }
-
-            content()
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.white.opacity(0.03))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(.white.opacity(0.05), lineWidth: 0.5)
-        )
-    }
-
-    // MARK: - Focus Tile
-
-    private func focusTile(value: String, label: String, sub: String, color: Color) -> some View {
-        VStack(spacing: 3) {
-            Text(value)
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(color)
-            Text(label)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(P.text2)
-            Text(sub)
-                .font(.system(size: 9))
-                .foregroundStyle(P.text3)
-        }
-        .padding(.vertical, 6)
-    }
-
-    /// Compact hour label: "12 PM–1 PM" → "12–1p"
-    private func compactHourLabel(_ label: String) -> String {
-        let cleaned = label
-            .replacingOccurrences(of: " AM", with: "a")
-            .replacingOccurrences(of: " PM", with: "p")
-            .replacingOccurrences(of: "\u{2013}", with: "–")
-        return cleaned
-    }
-
-    /// Extract display name from email or full name
-    private func extractDisplayName(_ raw: String) -> String {
-        if raw.contains("@") {
-            let local = String(raw.prefix(while: { $0 != "@" }))
-            return local
-                .replacingOccurrences(of: ".", with: " ")
-                .split(separator: " ")
-                .map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
-                .joined(separator: " ")
-        }
-        return raw
-    }
-
-    // MARK: - Calendar Heatmap
-
-    private func calendarHeatmap(stats: StatsService) -> some View {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let data = stats.heatmapData()
-        let maxCount = max(data.values.max() ?? 1, 1)
-
-        // Build 16 weeks of data, columns = weeks, rows = days (Mon-Sun)
-        let totalDays = 112
-        let startDate = calendar.date(byAdding: .day, value: -(totalDays - 1), to: today)!
-
-        // Align to Monday
-        let startWeekday = calendar.component(.weekday, from: startDate)
-        let mondayOffset = startWeekday == 1 ? -6 : 2 - startWeekday
-        let alignedStart = calendar.date(byAdding: .day, value: mondayOffset, to: startDate)!
-
-        // Calculate total days from aligned start to today
-        let totalAlignedDays = calendar.dateComponents([.day], from: alignedStart, to: today).day! + 1
-        let weeks = (totalAlignedDays + 6) / 7
-
-        return dataTile(title: "Activity", icon: "square.grid.3x3.fill") {
-            VStack(alignment: .leading, spacing: 4) {
-                // Month labels
-                HStack(spacing: 0) {
-                    Text("").frame(width: 17) // spacer for day labels
-                    HStack(spacing: 3) {
-                        ForEach(0..<weeks, id: \.self) { weekIdx in
-                            let weekStart = calendar.date(byAdding: .day, value: weekIdx * 7, to: alignedStart)!
-                            let monthDay = calendar.component(.day, from: weekStart)
-                            let isFirstWeekOfMonth = monthDay <= 7
-
-                            Text(isFirstWeekOfMonth ? shortMonthName(weekStart) : "")
-                                .font(.system(size: 8, weight: .medium))
-                                .foregroundStyle(P.text3)
-                                .frame(width: 11, alignment: .leading)
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-
-                // Grid: rows = 7 days, columns = weeks
-                HStack(spacing: 3) {
-                    // Day labels
-                    VStack(spacing: 3) {
-                        ForEach(0..<7, id: \.self) { dayIdx in
-                            Text(dayIdx % 2 == 0 ? ["M", "", "W", "", "F", "", "S"][dayIdx] : "")
-                                .font(.system(size: 7, weight: .medium))
-                                .foregroundStyle(P.text3)
-                                .frame(width: 14, height: 11)
-                        }
-                    }
-
-                    // Cells
-                    HStack(spacing: 3) {
-                        ForEach(0..<weeks, id: \.self) { weekIdx in
-                            VStack(spacing: 3) {
-                                ForEach(0..<7, id: \.self) { dayIdx in
-                                    let dayOffset = weekIdx * 7 + dayIdx
-                                    let date = calendar.date(byAdding: .day, value: dayOffset, to: alignedStart)!
-                                    let count = data[calendar.startOfDay(for: date)] ?? 0
-                                    let isFuture = date > today
-
-                                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                        .fill(isFuture ? .clear : heatmapColor(count: count, max: maxCount))
-                                        .frame(width: 11, height: 11)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                                .strokeBorder(isFuture ? .white.opacity(0.02) : .clear, lineWidth: 0.5)
-                                        )
-                                }
-                            }
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-
-                // Legend
-                HStack(spacing: 4) {
-                    Spacer()
-                    Text("Less")
-                        .font(.system(size: 8))
-                        .foregroundStyle(P.text3)
-                    ForEach([0, 1, 2, 3, 4], id: \.self) { level in
-                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                            .fill(heatmapColor(count: level, max: 4))
-                            .frame(width: 11, height: 11)
-                    }
-                    Text("More")
-                        .font(.system(size: 8))
-                        .foregroundStyle(P.text3)
-                }
-                .padding(.top, 4)
-            }
-        }
-    }
-
-    private func heatmapColor(count: Int, max: Int) -> Color {
-        guard count > 0 else { return .white.opacity(0.03) }
-        let ratio = min(Double(count) / Double(max), 1.0)
-        if ratio <= 0.25 { return accentColor.opacity(0.2) }
-        if ratio <= 0.5 { return accentColor.opacity(0.4) }
-        if ratio <= 0.75 { return accentColor.opacity(0.65) }
-        return accentColor
-    }
-
-    private func shortMonthName(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "MMM"
-        return f.string(from: date)
-    }
-
-    private var tileVerticalDivider: some View {
-        Rectangle().fill(.white.opacity(0.06)).frame(width: 0.5, height: 36)
-    }
-
-    // MARK: - Stats Helpers
-
-    private var focusSessionsThisWeek: Int {
-        let cal = Calendar.current
-        let weekAgo = cal.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        return appState.focusService.sessions.filter { $0.date > weekAgo }.count
-    }
-
-    private func formatMinutes(_ mins: Int) -> String {
-        if mins >= 60 {
-            let h = mins / 60
-            let m = mins % 60
-            return m > 0 ? "\(h)h \(m)m" : "\(h)h"
-        }
-        return "\(mins)m"
-    }
-
-    private struct StatsDayInfo {
-        let initial: String
-        let count: Int
-        let isToday: Bool
-    }
-
-    private var statsWeekDayData: [StatsDayInfo] {
-        let cal = Calendar.current
-        let today = Date()
-        guard let weekInterval = cal.dateInterval(of: .weekOfYear, for: today) else { return [] }
-
-        let initials = ["M", "T", "W", "T", "F", "S", "S"]
-        let todayWeekday = cal.component(.weekday, from: today)
-        let todayIndex = todayWeekday == 1 ? 6 : todayWeekday - 2
-
-        let weekRecords = appState.statsService.records.filter { $0.date >= weekInterval.start }
-        var counts = [Int](repeating: 0, count: 7)
-        for record in weekRecords {
-            let wd = cal.component(.weekday, from: record.date)
-            let index = wd == 1 ? 6 : wd - 2
-            counts[index] += 1
-        }
-
-        return (0..<7).map { i in
-            StatsDayInfo(initial: initials[i], count: counts[i], isToday: i == todayIndex)
-        }
-    }
+    // Stats tab delegates to isolated StatsTabContent to avoid tick-timer re-renders
 
     // MARK: - About Tab
 
@@ -1849,5 +1024,598 @@ private struct WorldClockAddRow: View {
         if query.isEmpty { return Array(available.prefix(10)) }
         let q = query.lowercased()
         return available.filter { ($0.components(separatedBy: "/").last ?? "").lowercased().contains(q) }.prefix(10).map { $0 }
+    }
+}
+
+// MARK: - Stats Tab (Duolingo-inspired, isolated from AppState tick timer)
+
+private enum StatsPeriod: String, CaseIterable {
+    case week = "Week"
+    case month = "Month"
+    case year = "Year"
+
+    var startDate: Date {
+        let cal = Calendar.current
+        switch self {
+        case .week:
+            return cal.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
+        case .month:
+            return cal.dateInterval(of: .month, for: Date())?.start ?? Date()
+        case .year:
+            return cal.dateInterval(of: .year, for: Date())?.start ?? Date()
+        }
+    }
+}
+
+private struct StatsTabContent: View {
+    @ObservedObject var stats: StatsService
+    @ObservedObject var focus: FocusService
+    let accentColor: Color
+
+    @State private var period: StatsPeriod = .week
+
+    private let card = Color.white.opacity(0.035)
+    private let cardBorder = Color.white.opacity(0.06)
+
+    private var filtered: [MeetingRecord] {
+        stats.records.filter { $0.date >= period.startDate }
+    }
+
+    var body: some View {
+        let hasData = !stats.records.isEmpty || focus.totalSessions > 0
+
+        ScrollView(.vertical, showsIndicators: false) {
+            if !hasData {
+                VStack(spacing: 20) {
+                    Spacer().frame(height: 60)
+                    ZStack {
+                        Circle().fill(accentColor.opacity(0.08)).frame(width: 100, height: 100).blur(radius: 30)
+                        Image(systemName: "chart.bar.xaxis.ascending")
+                            .font(.system(size: 32, weight: .light)).foregroundStyle(P.text3)
+                    }
+                    Text("No stats yet")
+                        .font(.system(size: 18, weight: .black, design: .rounded))
+                        .foregroundStyle(P.text1)
+                    Text("Attend a meeting or start a\nfocus session to get started!")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(P.text2)
+                        .multilineTextAlignment(.center).lineSpacing(3)
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                VStack(spacing: 14) {
+
+                    // MARK: — Period filter
+                    HStack(spacing: 4) {
+                        ForEach(StatsPeriod.allCases, id: \.self) { p in
+                            Button {
+                                withAnimation(.easeOut(duration: 0.15)) { period = p }
+                            } label: {
+                                Text(p.rawValue)
+                                    .font(.system(size: 11, weight: period == p ? .bold : .medium))
+                                    .foregroundStyle(period == p ? .white : P.text3)
+                                    .padding(.horizontal, 12).padding(.vertical, 5)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                            .fill(period == p ? accentColor : .white.opacity(0.04))
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        Spacer()
+                    }
+                    .padding(.top, 10)
+
+                    // MARK: — Streak hero
+                    streakHero
+
+                    // MARK: — Weekly dots
+                    if period == .week { weeklyDots }
+
+                    // MARK: — Focus ring (if data)
+                    if focus.totalSessions > 0 {
+                        focusRing
+                    }
+
+                    // MARK: — Contribution graph
+                    if !stats.records.isEmpty {
+                        HeatmapView(stats: stats, accentColor: accentColor)
+                    }
+
+                    // MARK: — Leaderboard
+                    if !filteredAttendees.isEmpty {
+                        leaderboard
+                    }
+
+                    // MARK: — Quick stats row
+                    if !filteredPeakHours.isEmpty || !filteredPlatforms.isEmpty {
+                        HStack(alignment: .top, spacing: 10) {
+                            if !filteredPeakHours.isEmpty {
+                                peakHoursCard.frame(maxHeight: .infinity, alignment: .top)
+                            }
+                            if !filteredPlatforms.isEmpty {
+                                platformsCard.frame(maxHeight: .infinity, alignment: .top)
+                            }
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    // MARK: — Recurring
+                    if !filteredRecurring.isEmpty {
+                        recurringCard
+                    }
+
+                    Spacer().frame(height: 8)
+                }
+                .padding(.horizontal, 20)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Streak Hero
+
+    private var streakHero: some View {
+        let count = filtered.count
+        let hours = Double(filtered.reduce(0) { $0 + $1.durationMinutes }) / 60.0
+        let avgMins = count > 0 ? filtered.reduce(0) { $0 + $1.durationMinutes } / count : 0
+        let label = period == .week ? "this week" : period == .month ? "this month" : "this year"
+
+        return HStack(spacing: 0) {
+            // Meetings
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(count)")
+                    .font(.system(size: 36, weight: .heavy))
+                    .foregroundStyle(accentColor)
+                Text("meetings")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(P.text3)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Hours
+            VStack(spacing: 4) {
+                Text(String(format: "%.1f", hours))
+                    .font(.system(size: 36, weight: .heavy))
+                    .foregroundStyle(P.text1)
+                Text("hours")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(P.text3)
+            }
+            .frame(maxWidth: .infinity)
+
+            // Avg
+            VStack(spacing: 4) {
+                Text("\(avgMins)m")
+                    .font(.system(size: 36, weight: .heavy))
+                    .foregroundStyle(P.text2)
+                Text("avg")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(P.text3)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(card))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(cardBorder, lineWidth: 0.5))
+    }
+
+    // MARK: - Weekly Dots
+
+    private var weeklyDots: some View {
+        let dayData = weekDayData
+        return HStack(spacing: 0) {
+            ForEach(Array(dayData.enumerated()), id: \.offset) { _, day in
+                VStack(spacing: 5) {
+                    Text(day.initial)
+                        .font(.system(size: 10, weight: day.isToday ? .bold : .medium))
+                        .foregroundStyle(day.isToday ? P.text1 : P.text3)
+
+                    ZStack {
+                        Circle()
+                            .fill(day.count > 0 ? accentColor.opacity(day.isToday ? 1 : 0.6) : .white.opacity(0.05))
+                            .frame(width: 28, height: 28)
+                        if day.count > 0 {
+                            Text("\(day.count)")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                    }
+
+                    if day.isToday {
+                        Circle().fill(accentColor).frame(width: 3, height: 3)
+                    } else {
+                        Spacer().frame(height: 3)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.vertical, 12).padding(.horizontal, 6)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(card))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(cardBorder, lineWidth: 0.5))
+    }
+
+    // MARK: - Focus Ring
+
+    private var focusRing: some View {
+        let todayMins = focus.todayFocusMinutes
+        let weekMins = focus.weekFocusMinutes
+        let goal: Double = 120
+        let progress = min(Double(todayMins) / goal, 1.0)
+        let rate = Int(focus.completionRate * 100)
+        let focusGreen = Color(red: 0.3, green: 0.75, blue: 0.4)
+
+        return HStack(spacing: 14) {
+            ZStack {
+                Circle().stroke(.white.opacity(0.06), lineWidth: 5).frame(width: 64, height: 64)
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(focusGreen, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                    .frame(width: 64, height: 64)
+                    .rotationEffect(.degrees(-90))
+                VStack(spacing: 0) {
+                    Text("\(todayMins)m")
+                        .font(.system(size: 16, weight: .heavy))
+                        .foregroundStyle(focusGreen)
+                    Text("today")
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundStyle(P.text3)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 0) {
+                    VStack(spacing: 2) {
+                        Text(formatMinutes(weekMins)).font(.system(size: 14, weight: .heavy)).foregroundStyle(P.text1)
+                        Text("this week").font(.system(size: 8, weight: .medium)).foregroundStyle(P.text3)
+                    }.frame(maxWidth: .infinity)
+                    VStack(spacing: 2) {
+                        Text("\(focusSessionsThisWeek)").font(.system(size: 14, weight: .heavy)).foregroundStyle(P.text1)
+                        Text("sessions").font(.system(size: 8, weight: .medium)).foregroundStyle(P.text3)
+                    }.frame(maxWidth: .infinity)
+                    VStack(spacing: 2) {
+                        Text("\(rate)%").font(.system(size: 14, weight: .heavy)).foregroundStyle(P.text1)
+                        Text("rate").font(.system(size: 8, weight: .medium)).foregroundStyle(P.text3)
+                    }.frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(card))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(cardBorder, lineWidth: 0.5))
+    }
+
+    // MARK: - Leaderboard
+
+    private var leaderboard: some View {
+        return sectionCard(title: "TOP PEOPLE", icon: "person.2.fill") {
+            ForEach(Array(filteredAttendees.enumerated()), id: \.element.name) { i, person in
+                let dn = extractDisplayName(person.name)
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(i == 0 ? accentColor.opacity(0.15) : .white.opacity(0.05))
+                            .frame(width: 30, height: 30)
+                        Text(String(dn.prefix(1)).uppercased())
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(i == 0 ? accentColor : P.text2)
+                    }
+                    Text(dn)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(P.text1).lineLimit(1)
+                    Spacer()
+                    Text("\(person.count)")
+                        .font(.system(size: 14, weight: .heavy))
+                        .foregroundStyle(i == 0 ? accentColor : P.text2).monospacedDigit()
+                }
+                if i < filteredAttendees.count - 1 { P.divider.frame(height: 0.5) }
+            }
+        }
+    }
+
+    // MARK: - Peak Hours Card
+
+    private var peakHoursCard: some View {
+        let amber = Color(red: 0.9, green: 0.65, blue: 0.25)
+        return sectionCard(title: "PEAK HOURS", icon: "clock.fill") {
+            ForEach(filteredPeakHours.prefix(3), id: \.hour) { item in
+                HStack(spacing: 6) {
+                    Text(item.hour)
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(P.text2)
+                        .frame(width: 50, alignment: .leading)
+                    barFill(fraction: item.percentage / 100, color: amber)
+                    Text("\(Int(item.percentage))%")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(P.text3)
+                        .frame(width: 24, alignment: .trailing).monospacedDigit()
+                }
+            }
+        }
+    }
+
+    // MARK: - Platforms Card
+
+    private var platformsCard: some View {
+        let blue = Color(red: 0.4, green: 0.6, blue: 1.0)
+        return sectionCard(title: "PLATFORMS", icon: "video.fill") {
+            ForEach(Array(filteredPlatforms.enumerated()), id: \.element.platform) { i, item in
+                HStack(spacing: 8) {
+                    Circle().fill(i == 0 ? blue : P.text3).frame(width: 5, height: 5)
+                    Text(item.platform)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(P.text1).lineLimit(1)
+                    Spacer()
+                    Text("\(item.count)")
+                        .font(.system(size: 13, weight: .heavy))
+                        .foregroundStyle(P.text2).monospacedDigit()
+                }
+            }
+        }
+    }
+
+    // MARK: - Recurring Card
+
+    private var recurringCard: some View {
+        sectionCard(title: "RECURRING", icon: "arrow.2.squarepath") {
+            ForEach(Array(filteredRecurring.prefix(4).enumerated()), id: \.element.title) { i, item in
+                HStack(spacing: 10) {
+                    Text("\(item.count)")
+                        .font(.system(size: 14, weight: .heavy))
+                        .foregroundStyle(i == 0 ? accentColor : P.text2)
+                        .frame(width: 22).monospacedDigit()
+                    Text(item.title)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(P.text1).lineLimit(1)
+                    Spacer()
+                }
+                if i < min(filteredRecurring.count, 4) - 1 { P.divider.frame(height: 0.5) }
+            }
+        }
+    }
+
+    // MARK: - Section Card
+
+    private func sectionCard<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 5) {
+                Image(systemName: icon).font(.system(size: 9)).foregroundStyle(P.text3)
+                Text(title)
+                    .font(.system(size: 9, weight: .heavy))
+                    .foregroundStyle(P.text3).tracking(1)
+            }
+            content()
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(card))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(cardBorder, lineWidth: 0.5))
+    }
+
+    // MARK: - Bar Fill
+
+    private func barFill(fraction: CGFloat, color: Color, height: CGFloat = 7) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 4, style: .continuous).fill(.white.opacity(0.04))
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(color).frame(width: max(geo.size.width * fraction, 4))
+            }
+        }
+        .frame(height: height)
+    }
+
+    // MARK: - Calendar Heatmap
+
+    // MARK: - Filtered Data
+
+    private var filteredAttendees: [(name: String, count: Int)] {
+        var counts = [String: Int]()
+        for r in filtered { for name in r.attendees { counts[name, default: 0] += 1 } }
+        return counts.map { ($0.key, $0.value) }.sorted { $0.1 > $1.1 }.prefix(3).map { $0 }
+    }
+
+    private var filteredPeakHours: [(hour: String, count: Int, percentage: Double)] {
+        let cal = Calendar.current
+        var counts = [Int: Int]()
+        for r in filtered { counts[cal.component(.hour, from: r.startTime), default: 0] += 1 }
+        let total = max(filtered.count, 1)
+        return counts.map { hour, count in
+            let h = hour % 12 == 0 ? 12 : hour % 12
+            let p = hour < 12 ? "a" : "p"
+            let h2 = (hour + 1) % 12 == 0 ? 12 : (hour + 1) % 12
+            let p2 = (hour + 1) < 12 || (hour + 1) == 24 ? "a" : "p"
+            return (hour: "\(h)\(p)–\(h2)\(p2)", count: count, percentage: Double(count) / Double(total) * 100)
+        }.sorted { $0.count > $1.count }
+    }
+
+    private var filteredPlatforms: [(platform: String, count: Int, percentage: Double)] {
+        var counts = [String: Int]()
+        for r in filtered { counts[r.platform ?? "No link", default: 0] += 1 }
+        let total = max(filtered.count, 1)
+        return counts.map { ($0.key, $0.value, Double($0.value) / Double(total) * 100) }.sorted { $0.1 > $1.1 }
+    }
+
+    private var filteredRecurring: [(title: String, count: Int)] {
+        var counts = [String: Int]()
+        for r in filtered { counts[r.title, default: 0] += 1 }
+        return counts.map { ($0.key, $0.value) }.sorted { $0.1 > $1.1 }.prefix(5).map { $0 }
+    }
+
+    // MARK: - Helpers
+
+    private func compactHourLabel(_ label: String) -> String {
+        label.replacingOccurrences(of: " AM", with: "a").replacingOccurrences(of: " PM", with: "p").replacingOccurrences(of: "\u{2013}", with: "–")
+    }
+
+    private func extractDisplayName(_ raw: String) -> String {
+        if raw.contains("@") {
+            let local = String(raw.prefix(while: { $0 != "@" }))
+            return local.replacingOccurrences(of: ".", with: " ").split(separator: " ")
+                .map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }.joined(separator: " ")
+        }
+        return raw
+    }
+
+    private func formatMinutes(_ mins: Int) -> String {
+        if mins >= 60 { let h = mins / 60, m = mins % 60; return m > 0 ? "\(h)h \(m)m" : "\(h)h" }
+        return "\(mins)m"
+    }
+
+    private struct DayInfo { let initial: String; let count: Int; let isToday: Bool }
+
+    private var focusSessionsThisWeek: Int {
+        let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        return focus.sessions.filter { $0.date > weekAgo }.count
+    }
+
+    private var weekDayData: [DayInfo] {
+        let cal = Calendar.current; let today = Date()
+        guard let weekInterval = cal.dateInterval(of: .weekOfYear, for: today) else { return [] }
+        let initials = ["M", "T", "W", "T", "F", "S", "S"]
+        let todayWeekday = cal.component(.weekday, from: today)
+        let todayIndex = todayWeekday == 1 ? 6 : todayWeekday - 2
+        let weekRecords = stats.records.filter { $0.date >= weekInterval.start }
+        var counts = [Int](repeating: 0, count: 7)
+        for record in weekRecords {
+            let wd = cal.component(.weekday, from: record.date)
+            counts[wd == 1 ? 6 : wd - 2] += 1
+        }
+        return (0..<7).map { DayInfo(initial: initials[$0], count: counts[$0], isToday: $0 == todayIndex) }
+    }
+}
+
+// MARK: - Heatmap (fully isolated — hover state stays local)
+
+private struct HeatmapView: View {
+    @ObservedObject var stats: StatsService
+    let accentColor: Color
+
+    @State private var hoverText: String = ""
+    private let card = Color.white.opacity(0.04)
+    private let cardBorder = Color.white.opacity(0.06)
+
+    var body: some View {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let data = stats.heatmapData()
+        let maxCount = max(data.values.max() ?? 1, 1)
+        let startDate = cal.date(byAdding: .day, value: -364, to: today)!
+        let startWeekday = cal.component(.weekday, from: startDate)
+        let mondayOffset = startWeekday == 1 ? -6 : 2 - startWeekday
+        let alignedStart = cal.date(byAdding: .day, value: mondayOffset, to: startDate)!
+        let totalAlignedDays = cal.dateComponents([.day], from: alignedStart, to: today).day! + 1
+        let weeks = (totalAlignedDays + 6) / 7
+
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 5) {
+                Image(systemName: "square.grid.3x3.fill").font(.system(size: 9)).foregroundStyle(P.text3)
+                Text("ACTIVITY")
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .foregroundStyle(P.text3).tracking(1)
+                Spacer()
+                Text("\(stats.totalMeetings) total")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(P.text3)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                let labelW: CGFloat = 16
+                let gap: CGFloat = 3
+                GeometryReader { geo in
+                    let availW = geo.size.width - labelW - gap
+                    let cs = max(floor((availW - CGFloat(weeks - 1) * gap) / CGFloat(weeks)), 6)
+                    let colW = cs + gap
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 0) {
+                            Spacer().frame(width: labelW + gap)
+                            ForEach(0..<weeks, id: \.self) { weekIdx in
+                                let weekStart = cal.date(byAdding: .day, value: weekIdx * 7, to: alignedStart)!
+                                let monthDay = cal.component(.day, from: weekStart)
+                                if monthDay <= 7 {
+                                    Text(shortMonth(weekStart))
+                                        .font(.system(size: 9, weight: .medium))
+                                        .foregroundStyle(P.text3).fixedSize()
+                                        .frame(width: colW, alignment: .leading)
+                                } else {
+                                    Spacer().frame(width: colW)
+                                }
+                            }
+                        }
+
+                        HStack(spacing: gap) {
+                            VStack(spacing: gap) {
+                                ForEach(0..<7, id: \.self) { dayIdx in
+                                    Text(dayIdx % 2 == 0 ? ["M", "", "W", "", "F", "", "S"][dayIdx] : "")
+                                        .font(.system(size: 7, weight: .medium))
+                                        .foregroundStyle(P.text3)
+                                        .frame(width: labelW, height: cs)
+                                }
+                            }
+                            ForEach(0..<weeks, id: \.self) { weekIdx in
+                                VStack(spacing: gap) {
+                                    ForEach(0..<7, id: \.self) { dayIdx in
+                                        let dayOffset = weekIdx * 7 + dayIdx
+                                        let date = cal.date(byAdding: .day, value: dayOffset, to: alignedStart)!
+                                        let count = data[cal.startOfDay(for: date)] ?? 0
+                                        let isFuture = date > today
+                                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                            .fill(isFuture ? .clear : colorFor(count: count, max: maxCount))
+                                            .frame(width: cs, height: cs)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                                    .strokeBorder(isFuture ? .white.opacity(0.02) : .clear, lineWidth: 0.5)
+                                            )
+                                            .contentShape(Rectangle())
+                                            .onHover { hovering in
+                                                hoverText = hovering && !isFuture ? tooltip(date: date, count: count) : ""
+                                            }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                .aspectRatio(CGFloat(weeks + 1) / 8.5, contentMode: .fit)
+
+                HStack(spacing: 4) {
+                    Text(hoverText.isEmpty ? " " : hoverText)
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(hoverText.isEmpty ? .clear : P.text2)
+                    Spacer()
+                    Text("Less").font(.system(size: 8)).foregroundStyle(P.text3)
+                    ForEach([0, 1, 2, 3, 4], id: \.self) { level in
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(colorFor(count: level, max: 4))
+                            .frame(width: 10, height: 10)
+                    }
+                    Text("More").font(.system(size: 8)).foregroundStyle(P.text3)
+                }
+                .padding(.top, 4)
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(card))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(cardBorder, lineWidth: 0.5))
+    }
+
+    private func colorFor(count: Int, max: Int) -> Color {
+        guard count > 0 else { return .white.opacity(0.03) }
+        let ratio = min(Double(count) / Double(max), 1.0)
+        if ratio <= 0.25 { return accentColor.opacity(0.2) }
+        if ratio <= 0.5 { return accentColor.opacity(0.4) }
+        if ratio <= 0.75 { return accentColor.opacity(0.65) }
+        return accentColor
+    }
+
+    private func tooltip(date: Date, count: Int) -> String {
+        let f = DateFormatter(); f.dateFormat = "MMM d, yyyy"
+        return "\(count == 0 ? "No meetings" : count == 1 ? "1 meeting" : "\(count) meetings") on \(f.string(from: date))"
+    }
+
+    private func shortMonth(_ date: Date) -> String {
+        let f = DateFormatter(); f.dateFormat = "MMM"; return f.string(from: date)
     }
 }

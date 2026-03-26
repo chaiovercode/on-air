@@ -19,6 +19,7 @@ final class StatusBarManager: NSObject {
     private var cancellables = Set<AnyCancellable>()
     private var blinkTimer: Timer?
     private var blinkVisible = true
+    private var pulsePhase: Double = 0
     private var settingsWindow: NSWindow?
     private var popoverPanel: NSPanel?
     private var overlayPanel: NSPanel?
@@ -363,14 +364,52 @@ final class StatusBarManager: NSObject {
             dotColor = .systemGray
         }
 
-        let dotAttachment = NSTextAttachment()
-        let dotImage = NSImage(size: NSSize(width: 8, height: 8), flipped: false) { rect in
+        let iconAttachment = NSTextAttachment()
+        let iconSize = NSSize(width: 16, height: 14)
+        let isCountingDown = appState.countdownActive && appState.secondsUntilNext > 0
+        let arcAlpha: CGFloat = isCountingDown ? pulseArcAlpha() : 0.55
+
+        let iconImage = NSImage(size: iconSize, flipped: false) { rect in
+            let cx = rect.midX, cy = rect.midY
+
+            // Center dot
+            let dotR: CGFloat = 1.8
             dotColor.setFill()
-            NSBezierPath(ovalIn: rect).fill()
+            NSBezierPath(ovalIn: NSRect(x: cx - dotR, y: cy - dotR, width: dotR * 2, height: dotR * 2)).fill()
+
+            // Parenthesis-style wave arcs (( ● ))
+            let waveColor = dotColor.withAlphaComponent(arcAlpha)
+            waveColor.setStroke()
+
+            let radii: [CGFloat] = [3.5, 5.8]
+            let widths: [CGFloat] = [1.3, 1.1]
+            let halfArc: CGFloat = 55
+
+            for i in 0..<2 {
+                // Right arcs )  — centered at 0° (right side)
+                let right = NSBezierPath()
+                right.appendArc(withCenter: NSPoint(x: cx, y: cy),
+                                radius: radii[i],
+                                startAngle: halfArc, endAngle: -halfArc, clockwise: true)
+                right.lineWidth = widths[i]
+                right.lineCapStyle = .round
+                right.stroke()
+
+                // Left arcs (  — centered at 180° (left side)
+                let left = NSBezierPath()
+                left.appendArc(withCenter: NSPoint(x: cx, y: cy),
+                               radius: radii[i],
+                               startAngle: 180 - halfArc, endAngle: 180 + halfArc)
+                left.lineWidth = widths[i]
+                left.lineCapStyle = .round
+                left.stroke()
+            }
             return true
         }
-        dotAttachment.image = dotImage
-        attributed.append(NSAttributedString(attachment: dotAttachment))
+        iconImage.isTemplate = false
+        iconAttachment.image = iconImage
+        iconAttachment.bounds = NSRect(x: 0, y: -2, width: iconSize.width, height: iconSize.height)
+        attributed.append(NSAttributedString(attachment: iconAttachment))
         attributed.append(NSAttributedString(string: " "))
 
         let textWithoutDot = text.hasPrefix("●") ? String(text.dropFirst(2)) : text
@@ -382,6 +421,12 @@ final class StatusBarManager: NSObject {
         ]))
 
         button.attributedTitle = attributed
+    }
+
+    private func pulseArcAlpha() -> CGFloat {
+        pulsePhase += 0.15
+        let wave = (sin(pulsePhase) + 1) / 2 // 0...1
+        return 0.3 + wave * 0.7 // oscillate between 0.3 and 1.0
     }
 }
 

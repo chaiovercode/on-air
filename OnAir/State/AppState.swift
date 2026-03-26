@@ -24,7 +24,7 @@ final class AppState: ObservableObject {
     let countdownPlayer = CountdownPlayer()
     let statsService = StatsService()
     let focusService = FocusService()
-    private(set) lazy var bookingServer = BookingServer(calendarService: calendarService, settings: settings)
+    // private(set) lazy var bookingServer = BookingServer(calendarService: calendarService, settings: settings)
 
     // MARK: - Private
 
@@ -71,10 +71,8 @@ final class AppState: ObservableObject {
             Task { @MainActor in self?.minuteTick += 1 }
         }
 
-        // Start booking server if enabled
-        if settings.bookingEnabled {
-            bookingServer.start()
-        }
+        // Booking server disabled
+        // if settings.bookingEnabled { bookingServer.start() }
     }
 
     func stop() {
@@ -168,6 +166,10 @@ final class AppState: ObservableObject {
     }
 
     private func scheduleCountdown(for event: CalendarEvent) {
+        guard settings.countdownSoundEnabled else {
+            countdownScheduled = true
+            return
+        }
         let loaded = countdownPlayer.loadSound(
             customPath: settings.customSoundPath,
             volume: Float(settings.volume)
@@ -279,7 +281,7 @@ final class AppState: ObservableObject {
         let title = String(nextFuture.title.prefix(20))
         let dayText: String
         if cal.isDateInTomorrow(nextFuture.startDate) {
-            dayText = "Tomorrow"
+            dayText = "Tmrw"
         } else {
             let f = DateFormatter()
             f.dateFormat = "EEE"

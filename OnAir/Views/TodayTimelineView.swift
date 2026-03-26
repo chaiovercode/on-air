@@ -33,8 +33,13 @@ struct TodayTimelineView: View {
                 ScrollViewReader { proxy in
                     ScrollView(.vertical, showsIndicators: false) {
                         ZStack(alignment: .topLeading) {
-                            // Hour lines
-                            hourGrid
+                            // Hour lines with scroll anchors
+                            VStack(spacing: 0) {
+                                ForEach(displayHours, id: \.self) { hour in
+                                    hourRow(hour)
+                                        .id("hour-\(hour)")
+                                }
+                            }
 
                             // Meeting blocks + focus slots
                             eventBlocks
@@ -46,8 +51,12 @@ struct TodayTimelineView: View {
                         .padding(.leading, 40)
                     }
                     .onAppear {
-                        // Scroll to current hour
-                        proxy.scrollTo("now", anchor: .center)
+                        let currentHour = calendar.component(.hour, from: Date())
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                proxy.scrollTo("hour-\(currentHour)", anchor: .center)
+                            }
+                        }
                     }
                 }
             }
@@ -216,63 +225,60 @@ struct TodayTimelineView: View {
 
     @State private var activeHourMenu: Int? = nil
 
-    private var hourGrid: some View {
-        VStack(spacing: 0) {
-            ForEach(displayHours, id: \.self) { hour in
-                ZStack(alignment: .trailing) {
-                    HStack(spacing: 8) {
-                        Text(hourLabel(hour))
-                            .font(.system(size: 9, weight: .medium, design: .monospaced))
-                            .foregroundStyle(.tertiary)
-                            .frame(width: 36, alignment: .trailing)
-                            .offset(x: -40)
+    @ViewBuilder
+    private func hourRow(_ hour: Int) -> some View {
+        ZStack(alignment: .trailing) {
+            HStack(spacing: 8) {
+                Text(hourLabel(hour))
+                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 36, alignment: .trailing)
+                    .offset(x: -40)
 
-                        Rectangle()
-                            .fill(Color.white.opacity(0.04))
-                            .frame(height: 0.5)
+                Rectangle()
+                    .fill(Color.white.opacity(0.04))
+                    .frame(height: 0.5)
+            }
+            .frame(height: hourHeight)
+            .contentShape(Rectangle())
+            .gesture(TapGesture(count: 2).onEnded {
+                withAnimation(.easeOut(duration: 0.15)) {
+                    activeHourMenu = activeHourMenu == hour ? nil : hour
+                }
+            })
+
+            if activeHourMenu == hour {
+                VStack(alignment: .leading, spacing: 0) {
+                    panelRow(icon: "brain.head.profile", label: "Focus 30m", color: accentColor) {
+                        bookFocusBlock(from: dateForHour(hour), minutes: 30)
+                        activeHourMenu = nil
                     }
-                    .frame(height: hourHeight)
-                    .contentShape(Rectangle())
-                    .gesture(TapGesture(count: 2).onEnded {
-                        withAnimation(.easeOut(duration: 0.15)) {
-                            activeHourMenu = activeHourMenu == hour ? nil : hour
+                    panelDivider
+                    panelRow(icon: "brain.head.profile", label: "Focus 60m", color: accentColor) {
+                        bookFocusBlock(from: dateForHour(hour), minutes: 60)
+                        activeHourMenu = nil
+                    }
+                    panelDivider
+                    panelRow(icon: "calendar.badge.plus", label: "New event...", color: .white.opacity(0.6)) {
+                        activeHourMenu = nil
+                        NotificationCenter.default.post(name: .toggleTimeline, object: nil)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            NotificationCenter.default.post(name: .toggleNewEvent, object: nil)
                         }
-                    })
-
-                    if activeHourMenu == hour {
-                        VStack(alignment: .leading, spacing: 0) {
-                            panelRow(icon: "brain.head.profile", label: "Focus 30m", color: accentColor) {
-                                bookFocusBlock(from: dateForHour(hour), minutes: 30)
-                                activeHourMenu = nil
-                            }
-                            panelDivider
-                            panelRow(icon: "brain.head.profile", label: "Focus 60m", color: accentColor) {
-                                bookFocusBlock(from: dateForHour(hour), minutes: 60)
-                                activeHourMenu = nil
-                            }
-                            panelDivider
-                            panelRow(icon: "calendar.badge.plus", label: "New event...", color: .white.opacity(0.6)) {
-                                activeHourMenu = nil
-                                NotificationCenter.default.post(name: .toggleTimeline, object: nil)
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                    NotificationCenter.default.post(name: .toggleNewEvent, object: nil)
-                                }
-                            }
-                        }
-                        .frame(width: 170)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color(red: 0.12, green: 0.11, blue: 0.10))
-                                .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
-                        )
-                        .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .trailing)))
-                        .zIndex(10)
                     }
                 }
+                .frame(width: 170)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(red: 0.12, green: 0.11, blue: 0.10))
+                        .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .trailing)))
+                .zIndex(10)
             }
         }
     }
@@ -320,7 +326,8 @@ struct TodayTimelineView: View {
     }
 
     private func meetingBlock(_ event: CalendarEvent) -> some View {
-        HStack(spacing: 8) {
+        let isPast = event.endDate <= Date()
+        return HStack(spacing: 8) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(Color(hex: event.calendarColorHex))
                 .frame(width: 3)
@@ -360,12 +367,13 @@ struct TodayTimelineView: View {
         .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color(hex: event.calendarColorHex).opacity(0.08))
+                .fill(Color(hex: event.calendarColorHex).opacity(isPast ? 0.03 : 0.08))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(Color(hex: event.calendarColorHex).opacity(0.2), lineWidth: 0.5)
+                .strokeBorder(Color(hex: event.calendarColorHex).opacity(isPast ? 0.08 : 0.2), lineWidth: 0.5)
         )
+        .opacity(isPast ? 0.4 : 1.0)
     }
 
     @ViewBuilder
@@ -690,7 +698,6 @@ struct TodayTimelineView: View {
                 .frame(height: 1.5)
         }
         .offset(y: y)
-        .id("now")
     }
 
     // MARK: - Empty State
@@ -875,21 +882,7 @@ struct TodayTimelineView: View {
     // MARK: - Layout Helpers
 
     private var displayHours: [Int] {
-        // Check if any event/focus block spans past midnight
-        let allEvents = events + focusBlockEvents
-        var maxHour = 24
-        let todayStart = calendar.startOfDay(for: Date())
-        for event in allEvents {
-            if event.endDate > todayStart {
-                let hoursFromMidnight = event.endDate.timeIntervalSince(todayStart) / 3600
-                let needed = Int(ceil(hoursFromMidnight))
-                if needed > maxHour {
-                    maxHour = needed
-                }
-            }
-        }
-
-        return Array(0..<maxHour)
+        return Array(0..<24)
     }
 
     private var timelineStartHour: Int {

@@ -12,36 +12,7 @@ struct CalendarGridView: View {
     private var accentRed: Color { Color(hex: appState.settings.accentColorHex) }
     @State private var eventCounts: [Date: Int] = [:]
 
-    private func fetchCurrentHolidays() -> Set<Date> {
-        guard appState.settings.showLongWeekends,
-              !appState.settings.holidayCalendarIds.isEmpty else { return [] }
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: displayedMonth))!
-        guard let endOfMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth) else { return [] }
-        let start = calendar.date(byAdding: .day, value: -7, to: startOfMonth)!
-        let end = calendar.date(byAdding: .day, value: 7, to: endOfMonth)!
-        // Use fetchAllDayEvents (proven to work) and filter by holiday calendar IDs
-        let allDayEvents = appState.calendarService.fetchAllDayEvents(
-            from: start, to: end,
-            disabledCalendarIds: []
-        )
-        let holidayIds = appState.settings.holidayCalendarIds
-        let dismissed = appState.settings.dismissedHolidayDates
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withFullDate]
-        var holidays = Set<Date>()
-        for event in allDayEvents where holidayIds.contains(event.calendarId) {
-            let day = calendar.startOfDay(for: event.startDate)
-            let dateStr = formatter.string(from: day)
-            if !dismissed.contains(dateStr) {
-                holidays.insert(day)
-            }
-        }
-        return holidays
-    }
-
     var body: some View {
-        let holidays = fetchCurrentHolidays()
-        let longWeekendDays = computeLongWeekendDays(from: holidays)
 
         VStack(spacing: 10) {
 
@@ -101,7 +72,7 @@ struct CalendarGridView: View {
                             .frame(width: 24)
 
                         ForEach(week, id: \.self) { date in
-                            dayCell(date: date, holidays: holidays, longWeekendDays: longWeekendDays)
+                            dayCell(date: date)
                                 .frame(maxWidth: .infinity)
                         }
                     }
@@ -115,7 +86,7 @@ struct CalendarGridView: View {
     // MARK: - Day Cell
 
     @ViewBuilder
-    private func dayCell(date: Date, holidays: Set<Date>, longWeekendDays: Set<Date>) -> some View {
+    private func dayCell(date: Date) -> some View {
         let isToday = calendar.isDateInToday(date)
         let isCurrentMonth = calendar.component(.month, from: date) == calendar.component(.month, from: displayedMonth)
         let isPast = date < calendar.startOfDay(for: Date()) && !isToday
@@ -123,8 +94,6 @@ struct CalendarGridView: View {
         let dayStart = calendar.startOfDay(for: date)
         let count = eventCounts[dayStart] ?? 0
         let showHeatmap = appState.settings.showCalendarHeatmap && isCurrentMonth
-        let isLongWeekend = longWeekendDays.contains(dayStart)
-        let isHoliday = holidays.contains(dayStart)
 
         Button {
             selectedDate = date
@@ -156,30 +125,10 @@ struct CalendarGridView: View {
                             isPast ? .gray : .primary
                         )
 
-                    // Holiday diamond marker (top-right inside cell)
-                    if isHoliday && isCurrentMonth && !isToday {
-                        VStack {
-                            HStack {
-                                Spacer()
-                                Image(systemName: "diamond.fill")
-                                    .font(.system(size: 3.5))
-                                    .foregroundStyle(isPast ? Color.gray.opacity(0.3) : accentRed)
-                            }
-                            Spacer()
-                        }
-                        .frame(width: 28, height: 28)
-                        .padding(.top, 2)
-                        .padding(.trailing, 1)
-                    }
                 }
                 .frame(height: 28)
 
-                // Long weekend bottom bar / event dot
-                if isLongWeekend && isCurrentMonth {
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(isPast ? Color.gray.opacity(0.25) : accentRed.opacity(0.7))
-                        .frame(width: 18, height: 3)
-                } else if !showHeatmap {
+                if !showHeatmap {
                     Circle()
                         .fill(count > 0 ? Color.secondary : Color.clear)
                         .frame(width: 4, height: 4)
@@ -220,73 +169,6 @@ struct CalendarGridView: View {
 
     private func weekNumber(for date: Date) -> Int {
         calendar.component(.weekOfYear, from: date)
-    }
-
-    /// Compute all dates that are part of a long weekend (>= 3 days including weekends + holidays + bridge days)
-    private func computeLongWeekendDays(from holidays: Set<Date>) -> Set<Date> {
-        guard !holidays.isEmpty else { return [] }
-
-        // Build candidate ranges for each holiday
-        // weekday: 1=Sun, 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri, 7=Sat
-        var ranges: [(start: Date, end: Date)] = []
-
-        for holiday in holidays {
-            let wd = calendar.component(.weekday, from: holiday)
-            let s: Date
-            let e: Date
-
-            switch wd {
-            case 2: // Mon → Sat-Mon
-                s = calendar.date(byAdding: .day, value: -2, to: holiday)!
-                e = holiday
-            case 3: // Tue → Sat-Tue (bridge Mon)
-                s = calendar.date(byAdding: .day, value: -3, to: holiday)!
-                e = holiday
-            case 5: // Thu → Thu-Sun (bridge Fri)
-                s = holiday
-                e = calendar.date(byAdding: .day, value: 3, to: holiday)!
-            case 6: // Fri → Fri-Sun
-                s = holiday
-                e = calendar.date(byAdding: .day, value: 2, to: holiday)!
-            case 7: // Sat → Sat-Sun
-                s = holiday
-                e = calendar.date(byAdding: .day, value: 1, to: holiday)!
-            case 1: // Sun → Sat-Sun
-                s = calendar.date(byAdding: .day, value: -1, to: holiday)!
-                e = holiday
-            default: // Wed → just the day (merges if adjacent to other ranges)
-                s = holiday
-                e = holiday
-            }
-            ranges.append((start: s, end: e))
-        }
-
-        // Sort and merge overlapping/adjacent ranges
-        ranges.sort { $0.start < $1.start }
-        var merged: [(start: Date, end: Date)] = []
-        for range in ranges {
-            if var last = merged.last,
-               range.start <= calendar.date(byAdding: .day, value: 1, to: last.end)! {
-                merged.removeLast()
-                last.end = max(last.end, range.end)
-                merged.append(last)
-            } else {
-                merged.append(range)
-            }
-        }
-
-        // Collect all days from ranges that are >= 3 days long
-        var result = Set<Date>()
-        for range in merged {
-            let days = calendar.dateComponents([.day], from: range.start, to: range.end).day! + 1
-            guard days >= 3 else { continue }
-            var d = range.start
-            while d <= range.end {
-                result.insert(d)
-                d = calendar.date(byAdding: .day, value: 1, to: d)!
-            }
-        }
-        return result
     }
 
     private func loadEventCounts() {
