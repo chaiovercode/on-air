@@ -16,9 +16,8 @@ Or grab the zip from [Releases](https://github.com/chaiovercode/on-air/releases)
 ## Screenshots
 
 <p>
-  <img src="screenshots/calendar.png" width="260" alt="Calendar view">
-  <img src="screenshots/timeline.png" width="260" alt="Timeline view">
-  <img src="screenshots/focus.png" width="260" alt="Focus timer">
+  <img src="screenshots/calendar.png" width="280" alt="Calendar view">
+  <img src="screenshots/timeline.png" width="280" alt="Timeline view">
 </p>
 
 <p>
