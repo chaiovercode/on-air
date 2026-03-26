@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build release
+        run: |
+          xcodebuild archive \
+            -project OnAir.xcodeproj \
+            -scheme OnAir \
+            -configuration Release \
+            -archivePath build/OnAir.xcarchive \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_ALLOWED=YES \
+            -quiet
+
+          mkdir -p build/export
+          cp -R build/OnAir.xcarchive/Products/Applications/OnAir.app build/export/
+
+          mkdir -p build/OnAir-Release
+          cp -R build/export/OnAir.app build/OnAir-Release/
+          cp install.command build/OnAir-Release/
+          chmod +x build/OnAir-Release/install.command
+
+          cd build && zip -r -q OnAir.zip OnAir-Release
+
+      - name: Compute SHA and create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          SHA=$(shasum -a 256 build/OnAir.zip | awk '{print $1}')
+
+          gh release create "$REF_NAME" build/OnAir.zip \
+            --title "OnAir $REF_NAME" \
+            --generate-notes
