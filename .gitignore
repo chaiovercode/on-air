@@ -3,3 +3,7 @@ build/
 *.xcodeproj/
 DerivedData/
 .DS_Store
+.agents/
+.claude/
+.kiro/
+.serena/

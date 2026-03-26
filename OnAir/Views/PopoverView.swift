@@ -197,7 +197,7 @@ struct PopoverView: View {
         .help(help)
     }
 
-    // MARK: - Greeting Card (Dot-style)
+    // MARK: - Greeting Card
 
     private var greetingCard: some View {
         VStack(alignment: .leading, spacing: 4) {
