@@ -253,6 +253,15 @@
             animation: fadeUp 0.8s ease 0.3s both;
         }
         .brew-box:hover { border-color: rgba(255,255,255,0.12); background: var(--surface2); }
+        .brew-stack { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+        .brew-hint {
+            font-size: 0.72rem; color: var(--text3); z-index: 1;
+            animation: fadeUp 0.8s ease 0.35s both;
+        }
+        .brew-hint-link {
+            color: var(--accent); cursor: pointer; text-decoration: underline;
+            text-underline-offset: 2px;
+        }
         .brew-prompt { color: var(--accent); font-weight: 700; }
         .brew-copy {
             font-family: 'Satoshi', sans-serif;
@@ -597,11 +606,14 @@
         <h1>Your meetings,<br>always <em>visible.</em></h1>
         <p class="subtitle">A menu bar companion that keeps you ahead of your calendar. Focus timer, auto-join, conflict alerts, and smart nudges — one click from the top of your screen.</p>
         <div class="hero-actions">
-            <div class="brew-box" onclick="navigator.clipboard.writeText('brew tap chaiovercode/tap && brew install --cask on-air');this.querySelector('.brew-copied').style.opacity=1;setTimeout(()=>this.querySelector('.brew-copied').style.opacity=0,1500)">
-                <span class="brew-prompt">$</span>
-                <span>brew tap chaiovercode/tap && brew install --cask on-air</span>
-                <span class="brew-copy">copy</span>
-                <span class="brew-copied">copied!</span>
+            <div class="brew-stack">
+                <div class="brew-hint">don't have brew? <span class="brew-hint-link" onclick="navigator.clipboard.writeText('/bin/bash -c &quot;$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)&quot;');this.textContent='copied!';setTimeout(()=>this.textContent='copy this first',1500)">copy this first</span></div>
+                <div class="brew-box" onclick="navigator.clipboard.writeText('brew tap chaiovercode/tap && brew install --cask on-air');this.querySelector('.brew-copied').style.opacity=1;setTimeout(()=>this.querySelector('.brew-copied').style.opacity=0,1500)">
+                    <span class="brew-prompt">$</span>
+                    <span>brew tap chaiovercode/tap && brew install --cask on-air</span>
+                    <span class="brew-copy">copy</span>
+                    <span class="brew-copied">copied!</span>
+                </div>
             </div>
         </div>
         <p class="hero-meta">Free  /  macOS 13+  /  2 MB  /  No account</p>
@@ -736,11 +748,14 @@
     <section class="final-cta reveal" id="download">
         <h2>Ready to stay <em>ahead?</em></h2>
         <p>One line. That is it.</p>
-        <div class="brew-box" onclick="navigator.clipboard.writeText('brew tap chaiovercode/tap && brew install --cask on-air');this.querySelector('.brew-copied').style.opacity=1;setTimeout(()=>this.querySelector('.brew-copied').style.opacity=0,1500)">
-            <span class="brew-prompt">$</span>
-            <span>brew tap chaiovercode/tap && brew install --cask on-air</span>
-            <span class="brew-copy">copy</span>
-            <span class="brew-copied">copied!</span>
+        <div class="brew-stack">
+            <div class="brew-box" onclick="navigator.clipboard.writeText('brew tap chaiovercode/tap && brew install --cask on-air');this.querySelector('.brew-copied').style.opacity=1;setTimeout(()=>this.querySelector('.brew-copied').style.opacity=0,1500)">
+                <span class="brew-prompt">$</span>
+                <span>brew tap chaiovercode/tap && brew install --cask on-air</span>
+                <span class="brew-copy">copy</span>
+                <span class="brew-copied">copied!</span>
+            </div>
+            <div class="brew-hint">don't have brew? <span class="brew-hint-link" onclick="navigator.clipboard.writeText('/bin/bash -c &quot;$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)&quot;');this.textContent='copied!';setTimeout(()=>this.textContent='copy this first',1500)">copy this first</span></div>
         </div>
     </section>
 

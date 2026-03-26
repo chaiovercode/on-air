@@ -6,12 +6,16 @@ Native Swift, about 2MB, reads your Mac calendar. No account, no subscription, n
 
 ## Install
 
+Don't have Homebrew? Run this first:
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+Then:
 ```bash
 brew tap chaiovercode/tap
 brew install --cask on-air
 ```
-
-Or grab the zip from [Releases](https://github.com/chaiovercode/on-air/releases), unzip, double-click `install.command`.
 
 ## Screenshots
 
