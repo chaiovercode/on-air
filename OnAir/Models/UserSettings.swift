@@ -33,7 +33,7 @@ final class UserSettings: ObservableObject {
         self.defaults = defaults
         self.leadTimeSeconds = defaults.object(forKey: "leadTimeSeconds") as? Int ?? 45
         self.volume = defaults.object(forKey: "volume") as? Double ?? 0.75
-        self.countdownSoundEnabled = defaults.object(forKey: "countdownSoundEnabled") as? Bool ?? true
+        self.countdownSoundEnabled = defaults.object(forKey: "countdownSoundEnabled") as? Bool ?? false
         self.showPastMeetings = defaults.bool(forKey: "showPastMeetings")
         self.hideEmptyDays = defaults.bool(forKey: "hideEmptyDays")
         self.launchAtLogin = defaults.bool(forKey: "launchAtLogin")
@@ -85,7 +85,7 @@ final class UserSettings: ObservableObject {
         didSet { defaults.set(volume, forKey: "volume") }
     }
 
-    @Published var countdownSoundEnabled: Bool = true {
+    @Published var countdownSoundEnabled: Bool = false {
         didSet { defaults.set(countdownSoundEnabled, forKey: "countdownSoundEnabled") }
     }
 
