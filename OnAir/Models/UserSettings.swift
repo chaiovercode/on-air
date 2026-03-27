@@ -291,4 +291,5 @@ final class UserSettings: ObservableObject {
             _disabledCalendarIds.insert(calendarId)
         }
     }
+
 }

@@ -194,6 +194,47 @@ final class CalendarService: ObservableObject {
         }
     }
 
+    /// Creates a general-purpose event in the specified calendar
+    func createEvent(title: String, startDate: Date, endDate: Date, calendarId: String?) -> Bool {
+        let event = EKEvent(eventStore: store)
+        event.title = title
+        event.startDate = startDate
+        event.endDate = endDate
+
+        if let calId = calendarId,
+           let cal = store.calendar(withIdentifier: calId) {
+            event.calendar = cal
+        } else {
+            event.calendar = store.defaultCalendarForNewEvents
+        }
+
+        guard event.calendar != nil else { return false }
+
+        do {
+            try store.save(event, span: .thisEvent, commit: true)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Deletes an event by identifier. Searches ±1 day window.
+    func deleteEvent(eventId: String) -> Bool {
+        let cal = Calendar.current
+        let start = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: Date()))!
+        let end = cal.date(byAdding: .day, value: 2, to: cal.startOfDay(for: Date()))!
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+        guard let ekEvent = store.events(matching: predicate).first(where: { $0.eventIdentifier == eventId }) else {
+            return false
+        }
+        do {
+            try store.remove(ekEvent, span: .thisEvent, commit: true)
+            return true
+        } catch {
+            return false
+        }
+    }
+
     func deleteFocusBlock(eventId: String) -> Bool {
         // Look up by eventIdentifier (matching how CalendarEvent.id is set)
         let cal = Calendar.current

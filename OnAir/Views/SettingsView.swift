@@ -1,3 +1,4 @@
+import AppKit
 import Collaboration
 import ServiceManagement
 import SwiftUI
@@ -360,6 +361,7 @@ struct SettingsView: View {
                 }
 
                 // Booking section disabled
+
             }
             .padding(.horizontal, 24).padding(.vertical, 8)
         }
