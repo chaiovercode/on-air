@@ -27,7 +27,7 @@ struct TodayTimelineView: View {
             header
                 .padding(.bottom, 8)
 
-            if events.isEmpty {
+            if false {
                 emptyState
             } else {
                 ScrollViewReader { proxy in
@@ -743,7 +743,7 @@ struct TodayTimelineView: View {
     // MARK: - Data
 
     private var events: [CalendarEvent] {
-        appState.todayEvents.filter { $0.endDate > Date() || appState.settings.showPastMeetings }
+        appState.todayEvents
     }
 
     /// Focus Block events from calendar (filtered out of main todayEvents by shouldShow)

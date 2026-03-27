@@ -176,7 +176,7 @@ struct AgendaView: View {
 
             let events: [CalendarEvent]
             if isToday {
-                events = appState.todayEvents.filter { $0.endDate > Date() || appState.settings.showPastMeetings }
+                events = appState.todayEvents
             } else {
                 events = appState.calendarService.fetchEvents(
                     from: startOfDay,
