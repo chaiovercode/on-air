@@ -44,6 +44,7 @@ final class StatusBarManager: NSObject {
         clickTarget = target
 
         if let button = statusItem?.button {
+            button.title = "OnAir"
             updateTitle()
             button.action = #selector(PopoverClickTarget.handleClick)
             button.target = target
