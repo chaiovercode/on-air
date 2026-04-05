@@ -8,6 +8,7 @@ extension Notification.Name {
     static let toggleSearch = Notification.Name("OnAir.toggleSearch")
     static let dismissOverlays = Notification.Name("OnAir.dismissOverlays")
     static let toggleTimeline = Notification.Name("OnAir.toggleTimeline")
+    static let scrollToFocusTimer = Notification.Name("OnAir.scrollToFocusTimer")
     static let popoverWidthChange = Notification.Name("OnAir.popoverWidthChange")
 }
 
@@ -170,6 +171,12 @@ final class StatusBarManager: NSObject {
                     NSWorkspace.shared.open(link.url)
                     return nil
                 }
+            }
+
+            // F — scroll to focus timer
+            if flags.isEmpty, event.charactersIgnoringModifiers == "f", !isEditing {
+                NotificationCenter.default.post(name: .scrollToFocusTimer, object: nil)
+                return nil
             }
 
             return event

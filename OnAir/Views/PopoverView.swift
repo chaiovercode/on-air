@@ -108,6 +108,12 @@ struct PopoverView: View {
                 .onReceive(NotificationCenter.default.publisher(for: .toggleTimeline)) { _ in
                     showTimeline.toggle()
                 }
+                .onReceive(NotificationCenter.default.publisher(for: .scrollToFocusTimer)) { _ in
+                    if showTimeline { showTimeline = false }
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        scrollToFocus = true
+                    }
+                }
 
                 // Footer
                 footer
