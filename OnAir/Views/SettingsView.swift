@@ -641,7 +641,7 @@ struct SettingsView: View {
                 }
 
                 Section("Options") {
-                    iconRow("calendar.badge.plus", "Focus block calendar", sub: "Where focus blocks are created") {
+                    iconRow("calendar.badge.plus", "Focus block calendar", sub: nil) {
                         let cals = appState.calendarService.availableCalendars
                         let current = cals.first { $0.id == settings.focusCalendarId }?.title ?? "Default"
                         Menu {
@@ -651,21 +651,30 @@ struct SettingsView: View {
                                 Button(cal.title) { settings.focusCalendarId = cal.id }
                             }
                         } label: {
-                            Text(current)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(P.text1)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                        .fill(.white.opacity(0.05))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                        .strokeBorder(.white.opacity(0.07), lineWidth: 0.5)
-                                )
+                            HStack(spacing: 6) {
+                                Text(current)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(P.text1)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.system(size: 8, weight: .semibold))
+                                    .foregroundStyle(P.text3)
+                            }
+                            .frame(maxWidth: 160, alignment: .trailing)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .fill(.white.opacity(0.06))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .strokeBorder(.white.opacity(0.09), lineWidth: 0.5)
+                            )
                         }
                         .buttonStyle(.plain)
+                        .menuIndicator(.hidden)
                     }
                 }
 
