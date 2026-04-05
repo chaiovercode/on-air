@@ -25,9 +25,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        statusBarManager = StatusBarManager(appState: appState)
-
         if hasCompletedOnboarding {
+            statusBarManager = StatusBarManager(appState: appState)
             Task { await appState.start() }
         } else {
             showOnboarding()
@@ -35,11 +34,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showOnboarding() {
+        NSApp.setActivationPolicy(.regular)
+
         let view = OnboardingView { [weak self] in
             guard let self else { return }
             self.hasCompletedOnboarding = true
             self.onboardingWindow?.close()
             self.onboardingWindow = nil
+            NSApp.setActivationPolicy(.accessory)
+            self.statusBarManager = StatusBarManager(appState: self.appState)
             Task { await self.appState.start() }
         }
 
