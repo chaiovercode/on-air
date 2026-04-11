@@ -8,7 +8,7 @@ struct CalendarGridView: View {
     @Binding var selectedDate: Date?
 
     private let calendar = Calendar.current
-    private let dayOfWeekHeaders = ["W", "M", "T", "W", "T", "F", "S"]
+    private let dayOfWeekHeaders = ["M", "T", "W", "T", "F", "S", "S"]
     private var accentRed: Color { Color(hex: appState.settings.accentColorHex) }
     @State private var eventCounts: [Date: Int] = [:]
 
